@@ -50,6 +50,50 @@ function CustomerModel.randomDescription(): HumanoidDescription
 	return description
 end
 
+-- Animações padrão de andar e de ficar parado do R15 (feitas pelo próprio Roblox).
+local WALK_ANIMATION = "rbxassetid://507777826"
+local IDLE_ANIMATION = "rbxassetid://507766388"
+
+local function loadTrack(animator: Animator, id: string): AnimationTrack?
+	local animation = Instance.new("Animation")
+	animation.AnimationId = id
+	local ok, track = pcall(animator.LoadAnimation, animator, animation)
+	return if ok then track else nil
+end
+
+-- Faz o boneco mexer as pernas quando anda e respirar quando está parado. Chamar depois de colocar o
+-- boneco no workspace. Sem isso os clientes "deslizam" pela loja.
+function CustomerModel.animate(model: Model)
+	local humanoid = model:FindFirstChildOfClass("Humanoid")
+	if humanoid == nil then
+		return
+	end
+	local animator = humanoid:FindFirstChildOfClass("Animator")
+	if animator == nil then
+		animator = Instance.new("Animator")
+		animator.Parent = humanoid
+	end
+	local walk = loadTrack(animator :: Animator, WALK_ANIMATION)
+	local idle = loadTrack(animator :: Animator, IDLE_ANIMATION)
+	if walk == nil or idle == nil then
+		return
+	end
+	idle.Looped = true
+	walk.Looped = true
+	idle:Play()
+	humanoid.Running:Connect(function(speed)
+		if speed > 0.5 then
+			if not walk.IsPlaying then
+				walk:Play(0.2)
+				idle:Stop(0.2)
+			end
+		elseif walk.IsPlaying then
+			walk:Stop(0.2)
+			idle:Play(0.2)
+		end
+	end)
+end
+
 -- Cria o boneco a partir de uma aparência (ou uma aleatória). Pode demorar um instante.
 function CustomerModel.build(description: HumanoidDescription?): Model
 	local model = Players:CreateHumanoidModelFromDescription(
