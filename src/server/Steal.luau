@@ -17,6 +17,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Cells = require(script.Parent.Cells)
 local Data = require(script.Parent.Data)
 local Layout = require(script.Parent.Street.Layout)
+local MonsterPowers = require(script.Parent.MonsterPowers)
 local Plots = require(script.Parent.Plots)
 local StoreUpgrades = require(script.Parent.StoreUpgrades)
 
@@ -181,7 +182,9 @@ local function onPromptTriggered(prompt: ProximityPrompt, thief: Player)
 	-- Câmeras de segurança na loja roubada: o ladrão fica ainda mais lento.
 	local ownerData = Data.get(owner)
 	local cameras = ownerData ~= nil and BuildCatalog.has(ownerData.Builds, "cameras")
-	setSpeed(thief, if cameras then Settings.CARRY_SPEED_CAMERAS else Settings.CARRY_SPEED)
+	-- The Tall One na cela do dono: mais lento ainda.
+	local speed = if cameras then Settings.CARRY_SPEED_CAMERAS else Settings.CARRY_SPEED
+	setSpeed(thief, speed * MonsterPowers.thiefSpeedMultiplier(owner))
 
 	local name = Anomalies.fullName(cell.Kind, cell.Variant)
 	tell(thief, `Run back to your store's back room with the {name}!`, INFO)

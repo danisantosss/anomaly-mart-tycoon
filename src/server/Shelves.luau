@@ -23,13 +23,15 @@ local function stockLabel(shelf: BasePart): TextLabel?
 end
 
 -- Quantos itens cabem no móvel: o do próprio móvel (atributo "Capacity", ver Street/Pieces.luau) mais o
--- bônus do upgrade Bigger Shelves (atributo "ShelfBonus" da loja).
+-- bônus do upgrade Bigger Shelves (atributo "ShelfBonus" da loja) e o dos Mimic Crates nas celas.
 function Shelves.capacity(shelf: BasePart): number
 	local base = shelf:GetAttribute("Capacity")
 	local store = shelf:FindFirstAncestor("Store")
 	local bonus = store and store:GetAttribute("ShelfBonus")
+	local monsters = store and store:GetAttribute("MonsterShelfBonus") -- Mimic Crate (MonsterPowers.luau)
 	return (if typeof(base) == "number" then base else Customers.SHELF_CAPACITY)
 		+ (if typeof(bonus) == "number" then bonus else 0)
+		+ (if typeof(monsters) == "number" then monsters else 0)
 end
 
 -- Multiplica o preço dos itens deste móvel (geladeira 2x, comida quente 4x).

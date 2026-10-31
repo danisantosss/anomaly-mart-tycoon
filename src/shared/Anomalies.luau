@@ -20,6 +20,7 @@ export type Definition = {
 	weight: number, -- chance relativa de aparecer (entre as do mesmo `source`)
 	clue: string, -- loja: a pista para perceber a anomalia; rua: uma frase sobre o monstro
 	captureCost: number?, -- só "Street": preço para capturar na rua, antes da variante
+	power: string?, -- só "Street": o poder que o monstro dá na cela (server/MonsterPowers.luau)
 }
 
 export type Variant = {
@@ -96,6 +97,7 @@ local LIST: { Definition } = {
 		weight = 30,
 		clue = "A wobbly slime that swallowed half the snack aisle.",
 		captureCost = 250,
+		power = "Power: restocks your emptiest shelf every 30s.",
 	},
 	{
 		id = "MimicCrate",
@@ -106,6 +108,7 @@ local LIST: { Definition } = {
 		weight = 26,
 		clue = "Looks like a delivery. It bites.",
 		captureCost = 350,
+		power = "Power: +2 items on every shelf.",
 	},
 	{
 		id = "SkullHound",
@@ -116,6 +119,7 @@ local LIST: { Definition } = {
 		weight = 15,
 		clue = "A bony dog with glowing ribs. Very good boy. Very wrong boy.",
 		captureCost = 1200,
+		power = "Power: thieves need +1.5s to open your cells.",
 	},
 	{
 		id = "EyeSpider",
@@ -126,6 +130,7 @@ local LIST: { Definition } = {
 		weight = 12,
 		clue = "One giant eye, eight long legs. It never blinks.",
 		captureCost = 1800,
+		power = "Power: catch disguised anomalies 15% faster.",
 	},
 	{
 		id = "TVHead",
@@ -136,6 +141,7 @@ local LIST: { Definition } = {
 		weight = 7,
 		clue = "A man in a suit with an old TV for a head. The channel is always static.",
 		captureCost = 7500,
+		power = "Power: +10% item prices.",
 	},
 	{
 		id = "StaticJelly",
@@ -146,6 +152,7 @@ local LIST: { Definition } = {
 		weight = 5,
 		clue = "A floating jellyfish that hums like a broken fridge.",
 		captureCost = 12000,
+		power = "Power: +20% income from your machines.",
 	},
 	{
 		id = "MothMonarch",
@@ -156,6 +163,7 @@ local LIST: { Definition } = {
 		weight = 2.5,
 		clue = "Huge wings covered in eyes. It loves the neon sign.",
 		captureCost = 45000,
+		power = "Power: +25% customers at night.",
 	},
 	{
 		id = "TheTallOne",
@@ -166,6 +174,7 @@ local LIST: { Definition } = {
 		weight = 0.8,
 		clue = "Taller than the store. Nobody saw it walk in.",
 		captureCost = 200000,
+		power = "Power: thieves carrying your anomalies run 30% slower.",
 	},
 	{
 		id = "RiftKing",
@@ -176,6 +185,7 @@ local LIST: { Definition } = {
 		weight = 0.15,
 		clue = "The Rift itself, wearing a crown.",
 		captureCost = 1000000,
+		power = "Power: +10% income for EVERYONE on the server.",
 	},
 }
 
