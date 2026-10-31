@@ -34,11 +34,35 @@ Config.Economy = {
 	SAFE_COLLECT_COOLDOWN = 1, -- segundos entre duas coletas seguidas no cofre
 }
 
+-- Ciclo dia e madrugada (docs/V1.md, seção 2). Em segundos.
+Config.Cycle = {
+	DAY_SECONDS = 8 * 60,
+	NIGHT_SECONDS = 4 * 60,
+	TRANSITION_SECONDS = 4, -- tempo da luz mudando
+}
+
+-- Clientes normais (docs/V1.md, seção 4).
+Config.Customers = {
+	DAY_INTERVAL = 6, -- segundos entre um cliente e outro, de dia
+	NIGHT_INTERVAL = 15,
+	MAX_IN_STORE = 6,
+	ITEM_PRICE = 5,
+	NIGHT_PRICE_MULTIPLIER = 3,
+	MIN_ITEMS = 1,
+	MAX_ITEMS = 3,
+	WALK_SPEED = 10,
+	CHECKOUT_PATIENCE = 30, -- segundos esperando no caixa antes de desistir e ir embora
+	SHELF_CAPACITY = 10,
+	RESTOCK_HOLD_SECONDS = 1,
+}
+
 -- Ajudas para testar no Studio. Não têm efeito no jogo publicado.
 Config.Debug = {
-	-- Enquanto ainda não existem vendas nem celas, o cofre ganha este valor por segundo no Studio, para dar
-	-- para testar a coleta. Vai a 0 quando as fontes de renda de verdade chegarem (PRs 5 e 6).
-	STUDIO_SAFE_INCOME_PER_SECOND = 25,
+	-- Renda extra por segundo no cofre, só no Studio. Útil para testar compras sem jogar muito.
+	STUDIO_SAFE_INCOME_PER_SECOND = 0,
+	-- Dia e madrugada mais curtos no Studio, para não precisar esperar 8 minutos. 0 = usar o normal.
+	STUDIO_DAY_SECONDS = 60,
+	STUDIO_NIGHT_SECONDS = 60,
 }
 
 return Config
