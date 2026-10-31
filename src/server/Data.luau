@@ -81,6 +81,16 @@ function Data.get(player: Player): PlayerData?
 	return if profile then profile.Data :: PlayerData else nil
 end
 
+-- Espera os dados carregarem (até `timeout` segundos). Para sistemas que começam junto com o Economy mas
+-- precisam dos dados salvos.
+function Data.waitFor(player: Player, timeout: number?): PlayerData?
+	local deadline = os.clock() + (timeout or 30)
+	while profiles[player] == nil and player.Parent == Players and os.clock() < deadline do
+		task.wait(0.2)
+	end
+	return Data.get(player)
+end
+
 function Data.release(player: Player)
 	local profile = profiles[player]
 	if profile == nil then

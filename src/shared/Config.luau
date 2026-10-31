@@ -56,6 +56,16 @@ Config.Customers = {
 	RESTOCK_HOLD_SECONDS = 1,
 }
 
+-- Anomalias e celas (docs/V1.md, seções 5 e 6). Os tipos e variantes ficam em Shared/Anomalies.luau.
+Config.Anomalies = {
+	NIGHT_CHANCE = 1 / 3, -- chance de um cliente da madrugada ser anomalia
+	BAD_SERVE_SAFE_LOSS = 0.10, -- atender uma anomalia: ela leva 10% do cofre
+	REFUSED_HUMAN_PENALTY_SECONDS = 30, -- recusar/assustar humano: clientes vêm na metade do ritmo
+	CAPTURE_HOLD_SECONDS = 2,
+	CAPTURE_DISTANCE = 12,
+	ESCAPE_AFTER_SECONDS = 30, -- anomalia ignorada esse tempo no caixa foge para o vizinho
+}
+
 -- Ajudas para testar no Studio. Não têm efeito no jogo publicado.
 Config.Debug = {
 	-- Renda extra por segundo no cofre, só no Studio. Útil para testar compras sem jogar muito.
@@ -63,6 +73,8 @@ Config.Debug = {
 	-- Dia e madrugada mais curtos no Studio, para não precisar esperar 8 minutos. 0 = usar o normal.
 	STUDIO_DAY_SECONDS = 60,
 	STUDIO_NIGHT_SECONDS = 60,
+	-- No Studio, a chance de anomalia de madrugada vira este valor (0 = usar a normal).
+	STUDIO_NIGHT_ANOMALY_CHANCE = 0.6,
 }
 
 return Config

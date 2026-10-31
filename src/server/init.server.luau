@@ -4,6 +4,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Cells = require(script.Cells)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Customers = require(script.Customers)
 local DayNight = require(script.DayNight)
@@ -15,6 +16,7 @@ Plots.start() -- primeiro: os outros sistemas usam a loja do jogador
 Economy.start()
 DayNight.start()
 Shelves.start()
+Cells.start()
 Customers.start()
 
 print(`[Anomaly Mart] servidor iniciado (v{Config.VERSION})`)

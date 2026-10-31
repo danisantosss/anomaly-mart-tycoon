@@ -1,19 +1,28 @@
 --!strict
--- Clientes normais (docs/V1.md, seção 4).
+-- Clientes e anomalias andando na loja (docs/V1.md, seções 4 e 5).
 --
 -- Cada loja recebe clientes de tempos em tempos. O cliente entra, pega itens de uma prateleira, entra na
--- fila do caixa e espera o dono apertar "Charge". O valor da venda vai para o cofre (Economy.addToSafe).
--- Se ninguém cobrar dentro da paciência dele, vai embora sem pagar.
+-- fila do caixa e espera o dono decidir:
+--   Charge  (F, no caixa)    cobra. Humano paga; anomalia leva 10% do cofre.
+--   Refuse  (R, no caixa)    manda embora. Anomalia: sem estrago. Humano: menos clientes por um tempo.
+--   Capture (C, no cliente)  só de madrugada. Anomalia vai para uma cela; humano foge assustado.
+-- Anomalia ignorada no caixa por muito tempo foge para a loja vizinha mais perto.
 --
--- Os clientes são bonecos R15 criados por HumanoidDescription com cores sorteadas: nenhum modelo 3D externo.
+-- Os bonecos vêm do CustomerModel (R15 com cores sorteadas) e as anomalias são "quebradas" pelo AnomalyLooks.
 
 local Debris = game:GetService("Debris")
 local PhysicsService = game:GetService("PhysicsService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
+local Anomalies = require(ReplicatedStorage.Shared.Anomalies)
 local Config = require(ReplicatedStorage.Shared.Config)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local AnomalyLooks = require(script.Parent.AnomalyLooks)
+local Cells = require(script.Parent.Cells)
+local CustomerModel = require(script.Parent.CustomerModel)
 local DayNight = require(script.Parent.DayNight)
 local Economy = require(script.Parent.Economy)
 local Layout = require(script.Parent.Street.Layout)
@@ -21,21 +30,29 @@ local Plots = require(script.Parent.Plots)
 local Shelves = require(script.Parent.Shelves)
 
 local Settings = Config.Customers
+local AnomalySettings = Config.Anomalies
 
-local COLLISION_GROUP = "Customers"
+local HUMAN = "Human"
 local WALK_TIMEOUT = 8 -- segundos tentando chegar num ponto antes de desistir dele
+local GOOD = Color3.fromRGB(120, 255, 140)
+local BAD = Color3.fromRGB(255, 100, 100)
+local INFO = Color3.fromRGB(255, 230, 140)
 
-type State = "Shopping" | "Queued" | "Leaving"
+type State = "Shopping" | "Queued" | "Leaving" | "Gone"
 
 export type Customer = {
 	model: Model,
 	humanoid: Humanoid,
-	owner: Player,
+	description: HumanoidDescription,
+	kind: string, -- "Human" ou o id de uma anomalia (Shared/Anomalies.luau)
+	variant: string,
 	items: number,
 	state: State,
+	escapes: number,
 }
 
 type StoreState = {
+	owner: Player,
 	store: Model,
 	origin: CFrame,
 	counter: BasePart,
@@ -43,34 +60,25 @@ type StoreState = {
 	customers: { Customer },
 	queue: { Customer },
 	nextSpawnAt: number,
-}
-
-local SKIN_TONES = {
-	Color3.fromRGB(255, 224, 189),
-	Color3.fromRGB(234, 192, 134),
-	Color3.fromRGB(198, 134, 66),
-	Color3.fromRGB(141, 85, 36),
-	Color3.fromRGB(92, 56, 32),
-}
-
-local CLOTHES = {
-	Color3.fromRGB(52, 101, 164),
-	Color3.fromRGB(204, 0, 0),
-	Color3.fromRGB(78, 154, 6),
-	Color3.fromRGB(237, 212, 0),
-	Color3.fromRGB(117, 80, 123),
-	Color3.fromRGB(46, 52, 54),
-	Color3.fromRGB(245, 121, 0),
-	Color3.fromRGB(238, 238, 236),
+	penaltyUntil: number,
 }
 
 local Customers = {}
 
 local stores: { [Player]: StoreState } = {}
 local random = Random.new()
+local notify: RemoteEvent
 
-local function pick<T>(list: { T }): T
-	return list[random:NextInteger(1, #list)]
+local function isAnomaly(customer: Customer): boolean
+	return customer.kind ~= HUMAN
+end
+
+local function nameOf(customer: Customer): string
+	return Anomalies.fullName(customer.kind, customer.variant)
+end
+
+local function tell(player: Player, text: string, color: Color3)
+	notify:FireClient(player, text, color)
 end
 
 -- Ponto no chão da loja, a partir de coordenadas locais do terreno (ver Street/Layout.luau).
@@ -103,36 +111,7 @@ local function queueSpot(state: StoreState, slot: number): Vector3
 	return point(state, localPos.X + slot * 2.5, localPos.Z - state.counter.Size.Z / 2 - 1.5)
 end
 
-local function buildModel(): Model
-	local description = Instance.new("HumanoidDescription")
-	local skin = pick(SKIN_TONES)
-	local shirt = pick(CLOTHES)
-	local pants = pick(CLOTHES)
-	description.HeadColor = skin
-	description.LeftArmColor = skin
-	description.RightArmColor = skin
-	description.TorsoColor = shirt
-	description.LeftLegColor = pants
-	description.RightLegColor = pants
-
-	local model = Players:CreateHumanoidModelFromDescription(description, Enum.HumanoidRigType.R15)
-	model.Name = "Customer"
-
-	local humanoid = model:FindFirstChildOfClass("Humanoid") :: Humanoid
-	humanoid.WalkSpeed = Settings.WALK_SPEED
-	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-	humanoid.BreakJointsOnDeath = false
-
-	for _, descendant in model:GetDescendants() do
-		if descendant:IsA("BasePart") then
-			descendant.CollisionGroup = COLLISION_GROUP
-		end
-	end
-
-	return model
-end
-
--- Anda até `position`. Devolve false se o cliente sumiu no caminho (loja fechou).
+-- Anda até `position`. Devolve false se o cliente sumiu no caminho (loja fechou, foi capturado).
 local function walk(customer: Customer, position: Vector3): boolean
 	if customer.model.Parent == nil then
 		return false
@@ -165,7 +144,19 @@ local function updateQueue(state: StoreState)
 	end
 end
 
+-- Some com o cliente na hora (capturado ou loja fechada).
+local function vanish(state: StoreState, customer: Customer)
+	customer.state = "Gone"
+	removeFrom(state.queue, customer)
+	removeFrom(state.customers, customer)
+	updateQueue(state)
+	customer.model:Destroy()
+end
+
 local function leave(state: StoreState, customer: Customer)
+	if customer.state == "Leaving" or customer.state == "Gone" then
+		return
+	end
 	customer.state = "Leaving"
 	removeFrom(state.queue, customer)
 	updateQueue(state)
@@ -174,14 +165,18 @@ local function leave(state: StoreState, customer: Customer)
 		and walk(customer, doorOutside(state))
 		and walk(customer, sidewalkPoint(state))
 
-	removeFrom(state.customers, customer)
-	customer.model:Destroy()
+	if customer.state == "Leaving" then
+		vanish(state, customer)
+	end
 end
 
--- "+$15" flutuando em cima do caixa por um instante.
-local function showSale(state: StoreState, amount: number)
+local function penalize(state: StoreState)
+	state.penaltyUntil = os.clock() + AnomalySettings.REFUSED_HUMAN_PENALTY_SECONDS
+end
+
+local function floatingText(parent: BasePart, text: string, color: Color3)
 	local billboard = Instance.new("BillboardGui")
-	billboard.Size = UDim2.fromOffset(120, 40)
+	billboard.Size = UDim2.fromOffset(140, 40)
 	billboard.StudsOffset = Vector3.new(0, 3, 0)
 	billboard.MaxDistance = 60
 
@@ -190,32 +185,178 @@ local function showSale(state: StoreState, amount: number)
 	label.BackgroundTransparency = 1
 	label.Font = Enum.Font.FredokaOne
 	label.TextScaled = true
-	label.TextColor3 = Color3.fromRGB(120, 255, 140)
+	label.TextColor3 = color
 	label.TextStrokeTransparency = 0.3
-	label.Text = "+" .. NumberFormat.cash(amount)
+	label.Text = text
 	label.Parent = billboard
 
-	billboard.Parent = state.counter
-	Debris:AddItem(billboard, 1.2)
+	billboard.Parent = parent
+	Debris:AddItem(billboard, 1.5)
 end
 
--- Cobra o primeiro da fila. Chamado quando o dono aperta "Charge" no caixa.
-local function checkout(owner: Player)
-	local state = stores[owner]
-	local customer = state and state.queue[1]
-	if state == nil or customer == nil then
+-- Luz do teto piscando por um instante: o sinal de que algo errado foi atendido.
+local function flickerLights(state: StoreState)
+	local structure = state.store:FindFirstChild("Structure")
+	local lamp = structure and structure:FindFirstChild("CeilingLight")
+	local light = lamp and lamp:FindFirstChildOfClass("PointLight")
+	if light == nil then
+		return
+	end
+	task.spawn(function()
+		for _ = 1, 8 do
+			light.Enabled = not light.Enabled
+			task.wait(random:NextNumber(0.05, 0.25))
+		end
+		light.Enabled = true
+	end)
+end
+
+local function charge(state: StoreState)
+	local customer = state.queue[1]
+	if customer == nil then
 		return
 	end
 
-	local multiplier = if DayNight.isNight() then Settings.NIGHT_PRICE_MULTIPLIER else 1
-	local amount = customer.items * Settings.ITEM_PRICE * multiplier
-	Economy.addToSafe(owner, amount)
-	showSale(state, amount)
+	if isAnomaly(customer) then
+		local lost = Economy.takeFromSafe(state.owner, AnomalySettings.BAD_SERVE_SAFE_LOSS)
+		flickerLights(state)
+		floatingText(state.counter, "-" .. NumberFormat.cash(lost), BAD)
+		tell(
+			state.owner,
+			`That was a {nameOf(customer)}! It took {NumberFormat.cash(lost)} from your safe.`,
+			BAD
+		)
+	else
+		local multiplier = if DayNight.isNight() then Settings.NIGHT_PRICE_MULTIPLIER else 1
+		local amount = customer.items * Settings.ITEM_PRICE * multiplier
+		Economy.addToSafe(state.owner, amount)
+		floatingText(state.counter, "+" .. NumberFormat.cash(amount), GOOD)
+	end
 
 	task.spawn(leave, state, customer)
 end
 
-local function shop(state: StoreState, customer: Customer)
+local function refuse(state: StoreState)
+	local customer = state.queue[1]
+	if customer == nil then
+		return
+	end
+
+	if isAnomaly(customer) then
+		tell(state.owner, `Good call! That was a {nameOf(customer)}.`, GOOD)
+	else
+		penalize(state)
+		tell(state.owner, "That was a real customer... fewer people will come for a while.", BAD)
+	end
+
+	task.spawn(leave, state, customer)
+end
+
+local function capture(state: StoreState, customer: Customer)
+	if customer.state == "Leaving" or customer.state == "Gone" then
+		return
+	end
+
+	if not isAnomaly(customer) then
+		penalize(state)
+		tell(state.owner, "You scared a real customer! Fewer people will come for a while.", BAD)
+		task.spawn(leave, state, customer)
+		return
+	end
+
+	if not Cells.tryAdd(state.owner, customer.kind, customer.variant) then
+		tell(state.owner, "No free cell! Upgrade your cells or refuse it.", INFO)
+		return
+	end
+
+	tell(state.owner, `Captured: {nameOf(customer)}!`, GOOD)
+	vanish(state, customer)
+end
+
+-- Botão "Capture" no próprio cliente, só para o dono da loja onde ele está. Só existe em quem chega de
+-- madrugada (de dia não aparecem anomalias).
+local function addCapturePrompt(state: StoreState, customer: Customer)
+	local root = customer.model.PrimaryPart
+	if root == nil then
+		return
+	end
+	local old = root:FindFirstChild("CapturePrompt")
+	if old then
+		old:Destroy()
+	end
+	if not DayNight.isNight() then
+		return
+	end
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "CapturePrompt"
+	prompt.ActionText = "Capture"
+	prompt.ObjectText = "Customer"
+	prompt.KeyboardKeyCode = Enum.KeyCode.C
+	prompt.HoldDuration = AnomalySettings.CAPTURE_HOLD_SECONDS
+	prompt.MaxActivationDistance = AnomalySettings.CAPTURE_DISTANCE
+	prompt.RequiresLineOfSight = false
+	prompt:SetAttribute("OwnerUserId", state.owner.UserId)
+	prompt.Parent = root
+
+	prompt.Triggered:Connect(function(who)
+		if who == state.owner and DayNight.isNight() then
+			capture(state, customer)
+		end
+	end)
+end
+
+local function nearestOtherStore(state: StoreState): StoreState?
+	local best: StoreState? = nil
+	local bestDistance = math.huge
+	for _, other in stores do
+		if other ~= state and other.store.Parent ~= nil then
+			local distance = (other.origin.Position - state.origin.Position).Magnitude
+			if distance < bestDistance then
+				bestDistance = distance
+				best = other
+			end
+		end
+	end
+	return best
+end
+
+local shop: (StoreState, Customer) -> ()
+
+-- A anomalia ignorada sai da loja e entra na do vizinho, onde vira problema dele.
+local function escape(state: StoreState, customer: Customer)
+	local neighbor = nearestOtherStore(state)
+	if neighbor == nil then
+		leave(state, customer)
+		return
+	end
+
+	customer.state = "Leaving"
+	removeFrom(state.queue, customer)
+	updateQueue(state)
+	tell(state.owner, `A {nameOf(customer)} escaped to {neighbor.owner.DisplayName}'s store!`, BAD)
+
+	if not (walk(customer, doorInside(state)) and walk(customer, doorOutside(state))) then
+		return
+	end
+
+	removeFrom(state.customers, customer)
+	customer.escapes += 1
+	customer.state = "Shopping"
+	customer.model.Parent = neighbor.folder
+	customer.model:PivotTo(CFrame.new(sidewalkPoint(neighbor)))
+	table.insert(neighbor.customers, customer)
+	addCapturePrompt(neighbor, customer)
+	tell(
+		neighbor.owner,
+		`Something escaped from {state.owner.DisplayName}'s store... watch your customers.`,
+		INFO
+	)
+
+	shop(neighbor, customer)
+end
+
+function shop(state: StoreState, customer: Customer)
 	if not (walk(customer, doorOutside(state)) and walk(customer, doorInside(state))) then
 		return
 	end
@@ -225,14 +366,16 @@ local function shop(state: StoreState, customer: Customer)
 		leave(state, customer)
 		return
 	end
-	local shelf = pick(shelves)
+	local shelf = shelves[random:NextInteger(1, #shelves)]
 	if not walk(customer, shelfSpot(state, shelf)) then
 		return
 	end
 	task.wait(1.5)
 
-	customer.items = Shelves.take(shelf, customer.items)
-	if customer.items == 0 then
+	-- O Salt Buyer leva tudo o que tiver na prateleira.
+	local wanted = if customer.kind == "SaltBuyer" then math.huge else customer.items
+	customer.items = Shelves.take(shelf, wanted)
+	if customer.items == 0 and not isAnomaly(customer) then
 		leave(state, customer) -- prateleira vazia: vai embora sem comprar
 		return
 	end
@@ -241,18 +384,50 @@ local function shop(state: StoreState, customer: Customer)
 	table.insert(state.queue, customer)
 	updateQueue(state)
 
+	local patience = if isAnomaly(customer)
+		then AnomalySettings.ESCAPE_AFTER_SECONDS
+		else Settings.CHECKOUT_PATIENCE
 	local waitedSince = os.clock()
 	while customer.state == "Queued" and customer.model.Parent ~= nil do
-		if os.clock() - waitedSince > Settings.CHECKOUT_PATIENCE then
-			leave(state, customer) -- cansou de esperar
+		if os.clock() - waitedSince > patience then
+			if isAnomaly(customer) and customer.escapes == 0 then
+				escape(state, customer)
+			else
+				leave(state, customer)
+			end
 			return
 		end
 		task.wait(0.25)
 	end
 end
 
-local function spawnCustomer(owner: Player, state: StoreState)
-	local model = buildModel()
+local function anomalyChance(): number
+	local studio = Config.Debug.STUDIO_NIGHT_ANOMALY_CHANCE
+	return if RunService:IsStudio() and studio > 0 then studio else AnomalySettings.NIGHT_CHANCE
+end
+
+local function spawnCustomer(state: StoreState)
+	local kind = HUMAN
+	local variant = "Normal"
+	if DayNight.isNight() and random:NextNumber() < anomalyChance() then
+		kind = Anomalies.pickDefinition(random).id
+		variant = Anomalies.pickVariant(random).id
+	end
+
+	-- The Twin copia a aparência de alguém que já está na loja.
+	local description = CustomerModel.randomDescription()
+	if kind == "Twin" and #state.customers > 0 then
+		description = state.customers[random:NextInteger(1, #state.customers)].description:Clone()
+	end
+
+	local model = CustomerModel.build(description)
+	if kind ~= HUMAN then
+		AnomalyLooks.apply(model, kind, variant)
+	end
+	if state.store.Parent == nil then
+		model:Destroy()
+		return
+	end
 	model:PivotTo(CFrame.new(sidewalkPoint(state)))
 	model.Parent = state.folder
 
@@ -264,12 +439,35 @@ local function spawnCustomer(owner: Player, state: StoreState)
 	local customer: Customer = {
 		model = model,
 		humanoid = model:FindFirstChildOfClass("Humanoid") :: Humanoid,
-		owner = owner,
+		description = description,
+		kind = kind,
+		variant = variant,
 		items = random:NextInteger(Settings.MIN_ITEMS, Settings.MAX_ITEMS),
 		state = "Shopping",
+		escapes = 0,
 	}
 	table.insert(state.customers, customer)
+	addCapturePrompt(state, customer)
 	shop(state, customer)
+end
+
+local function makeCounterPrompt(
+	owner: Player,
+	counter: BasePart,
+	name: string,
+	action: string,
+	key: Enum.KeyCode
+)
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = name
+	prompt.ActionText = action
+	prompt.ObjectText = "Register"
+	prompt.KeyboardKeyCode = key
+	prompt.MaxActivationDistance = 10
+	prompt.RequiresLineOfSight = false
+	prompt:SetAttribute("OwnerUserId", owner.UserId)
+	prompt.Parent = counter
+	return prompt
 end
 
 local function setupStore(player: Player)
@@ -284,22 +482,8 @@ local function setupStore(player: Player)
 	folder.Name = "Customers"
 	folder.Parent = store
 
-	local prompt = Instance.new("ProximityPrompt")
-	prompt.Name = "ChargePrompt"
-	prompt.ActionText = "Charge"
-	prompt.ObjectText = "Register"
-	prompt.KeyboardKeyCode = Enum.KeyCode.F
-	prompt.MaxActivationDistance = 10
-	prompt.RequiresLineOfSight = false
-	prompt:SetAttribute("OwnerUserId", player.UserId)
-	prompt.Parent = counter
-	prompt.Triggered:Connect(function(who)
-		if who == player then
-			checkout(player)
-		end
-	end)
-
-	stores[player] = {
+	local state: StoreState = {
+		owner = player,
 		store = store,
 		origin = origin,
 		counter = counter,
@@ -307,7 +491,25 @@ local function setupStore(player: Player)
 		customers = {},
 		queue = {},
 		nextSpawnAt = os.clock() + 2,
+		penaltyUntil = 0,
 	}
+	stores[player] = state
+
+	-- Dois botões no mesmo lugar: o Roblox mostra os dois lado a lado.
+	makeCounterPrompt(player, counter, "ChargePrompt", "Charge", Enum.KeyCode.F).Triggered:Connect(
+		function(who)
+			if who == player then
+				charge(state)
+			end
+		end
+	)
+	makeCounterPrompt(player, counter, "RefusePrompt", "Refuse", Enum.KeyCode.R).Triggered:Connect(
+		function(who)
+			if who == player then
+				refuse(state)
+			end
+		end
+	)
 end
 
 local function spawnLoop()
@@ -319,17 +521,26 @@ local function spawnLoop()
 				stores[owner] = nil
 			elseif now >= state.nextSpawnAt and #state.customers < Settings.MAX_IN_STORE then
 				local interval = if DayNight.isNight() then Settings.NIGHT_INTERVAL else Settings.DAY_INTERVAL
+				if now < state.penaltyUntil then
+					interval *= 2
+				end
 				state.nextSpawnAt = now + interval
-				task.spawn(spawnCustomer, owner, state)
+				task.spawn(spawnCustomer, state)
 			end
 		end
 	end
 end
 
--- Precisa rodar depois de Plots.start() e Shelves.start().
+-- Precisa rodar depois de Plots, Economy, Shelves e Cells.
 function Customers.start()
-	PhysicsService:RegisterCollisionGroup(COLLISION_GROUP)
-	PhysicsService:CollisionGroupSetCollidable(COLLISION_GROUP, COLLISION_GROUP, false)
+	notify = Remotes.get("Notify")
+
+	PhysicsService:RegisterCollisionGroup(CustomerModel.COLLISION_GROUP)
+	PhysicsService:CollisionGroupSetCollidable(
+		CustomerModel.COLLISION_GROUP,
+		CustomerModel.COLLISION_GROUP,
+		false
+	)
 
 	Players.PlayerAdded:Connect(setupStore)
 	Players.PlayerRemoving:Connect(function(player)
