@@ -231,6 +231,15 @@ local function watchLoop()
 	end
 end
 
+-- Alguém acertou o ladrão com o bastão de choque: ele deixa cair a anomalia, que volta para a cela.
+function Steal.zap(thief: Player, by: Player): boolean
+	if carrying[thief] == nil or thief == by then
+		return false
+	end
+	giveBack(thief, `{by.DisplayName} zapped {thief.DisplayName}!`)
+	return true
+end
+
 function Steal.isCarrying(player: Player): boolean
 	return carrying[player] ~= nil
 end

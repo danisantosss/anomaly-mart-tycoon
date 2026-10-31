@@ -58,11 +58,16 @@ function StoreUpgrades.customerRate(player: Player): number
 		+ MonsterPowers.customerBonus(player)
 end
 
--- Multiplica o preço dos itens vendidos (Premium Products + TV Head na cela).
+-- Multiplica o preço dos itens vendidos (Premium Products + TV Head na cela, vezes o evento Golden Hour).
 function StoreUpgrades.priceMultiplier(player: Player): number
-	return 1
+	local golden = if ReplicatedStorage:GetAttribute("GoldenHour") == true
+		then Config.Events.GOLDEN_HOUR_PRICE
+		else 1
+	return (
+		1
 		+ StoreUpgrades.level(player, "PremiumProducts") * Effects.PREMIUM_PRICE_PER_LEVEL
 		+ MonsterPowers.priceBonus(player)
+	) * golden
 end
 
 function StoreUpgrades.doorLockSeconds(player: Player): number

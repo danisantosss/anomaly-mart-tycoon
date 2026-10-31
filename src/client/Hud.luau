@@ -97,6 +97,13 @@ function Hud.start()
 	phaseLabel.Size = UDim2.fromScale(0.25, 0.045)
 	phaseLabel.Position = UDim2.fromScale(0.5, 0.14)
 
+	-- Evento aleatório em andamento (server/RandomEvents.luau), logo abaixo da fase do dia.
+	local eventLabel = makeLabel("Event", gui)
+	eventLabel.AnchorPoint = Vector2.new(0.5, 0)
+	eventLabel.Size = UDim2.fromScale(0.3, 0.035)
+	eventLabel.Position = UDim2.fromScale(0.5, 0.19)
+	eventLabel.TextColor3 = Color3.fromRGB(255, 210, 60)
+
 	-- Canto superior direito: multiplicador total, estrela da Franquia e tempo do boost 2x.
 	local bonusLabel = makeLabel("Bonus", gui)
 	bonusLabel.AnchorPoint = Vector2.new(1, 0)
@@ -138,6 +145,14 @@ function Hud.start()
 			boostLabel.Text = ""
 		end
 
+		local eventName = ReplicatedStorage:GetAttribute("EventName")
+		local eventEndsAt = ReplicatedStorage:GetAttribute("EventEndsAt")
+		if typeof(eventName) == "string" and typeof(eventEndsAt) == "number" and eventEndsAt > now then
+			eventLabel.Text = `★ {eventName} · {math.ceil(eventEndsAt - now)}s`
+		else
+			eventLabel.Text = ""
+		end
+
 		local phase = ReplicatedStorage:GetAttribute("Phase")
 		local endsAt = ReplicatedStorage:GetAttribute("PhaseEndsAt")
 		if typeof(phase) ~= "string" or typeof(endsAt) ~= "number" then
@@ -159,7 +174,7 @@ function Hud.start()
 	toasts.BackgroundTransparency = 1
 	toasts.AnchorPoint = Vector2.new(0.5, 0)
 	toasts.Size = UDim2.fromScale(0.6, 0.3)
-	toasts.Position = UDim2.fromScale(0.5, 0.2)
+	toasts.Position = UDim2.fromScale(0.5, 0.235)
 	toasts.Parent = gui
 	local layout = Instance.new("UIListLayout")
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center

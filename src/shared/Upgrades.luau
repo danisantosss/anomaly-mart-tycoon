@@ -52,6 +52,13 @@ local LIST: { Definition } = {
 		baseCost = 150,
 	},
 	{
+		id = "ShockBaton",
+		displayName = "Shock Baton",
+		description = "+1 baton damage. Knock out monsters faster.",
+		maxLevel = 8,
+		baseCost = 250,
+	},
+	{
 		id = "Flashlight",
 		displayName = "Flashlight",
 		description = "Capture anomalies faster.",

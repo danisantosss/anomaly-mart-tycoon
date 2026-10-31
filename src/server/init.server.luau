@@ -17,6 +17,7 @@ local Leaderboards = require(script.Leaderboards)
 local MonsterPowers = require(script.MonsterPowers)
 local Passes = require(script.Passes)
 local Plots = require(script.Plots)
+local RandomEvents = require(script.RandomEvents)
 local Receipts = require(script.Receipts)
 local Rewards = require(script.Rewards)
 local RiftInvasion = require(script.RiftInvasion)
@@ -26,6 +27,7 @@ local Social = require(script.Social)
 local Steal = require(script.Steal)
 local StreetMonsters = require(script.StreetMonsters)
 local StoreUpgrades = require(script.StoreUpgrades)
+local Weapons = require(script.Weapons)
 
 Plots.start() -- primeiro: os outros sistemas usam a loja do jogador
 Passes.start()
@@ -40,9 +42,11 @@ Builds.start() -- reconstrói o que o jogador comprou: depois de Shelves, Cells,
 Customers.start()
 Steal.start()
 StreetMonsters.start()
-RiftInvasion.start() -- depois de StreetMonsters (pausa a Fenda durante a invasão)
+RiftInvasion.start() -- depois de StreetMonsters (chuva de monstros no fim)
 RiftLure.start() -- registra os produtos no Receipts
 Receipts.start()
+Weapons.start() -- depois de StreetMonsters, RiftInvasion e Steal
+RandomEvents.start()
 Franchise.start()
 Rewards.start()
 Social.start()

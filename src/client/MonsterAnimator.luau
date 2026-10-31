@@ -25,9 +25,11 @@ type Entry = {
 	seed: number,
 	static: { BasePart },
 	glitch: { BasePart },
+	top: { Motor6D }, -- juntas presas direto na raiz: recebem o bote e o tranco do golpe
 }
 
 local entries: { [Model]: Entry } = {}
+local reactions: (Entry, number) -> ()
 
 local function rot(x: number, y: number, z: number): CFrame
 	return CFrame.Angles(x, y, z)
@@ -183,6 +185,30 @@ local ANIMATIONS: { [string]: (Joints, number, number, Model) -> () } = {
 	end,
 }
 
+-- Por cima da animação de cada tipo: bote para a frente quando ataca ("AttackAt") e tranco para trás
+-- quando leva um golpe do bastão ("HitAt"). Os dois atributos são a hora do servidor.
+local ATTACK_SECONDS = 0.35
+local HIT_SECONDS = 0.2
+
+function reactions(entry: Entry, serverNow: number)
+	local extra = CFrame.identity
+	local attackAt = entry.model:GetAttribute("AttackAt")
+	if typeof(attackAt) == "number" and serverNow - attackAt < ATTACK_SECONDS then
+		local k = math.sin(math.pi * math.max(serverNow - attackAt, 0) / ATTACK_SECONDS)
+		extra *= CFrame.new(0, 0, -1.5 * k) * CFrame.Angles(-0.3 * k, 0, 0)
+	end
+	local hitAt = entry.model:GetAttribute("HitAt")
+	if typeof(hitAt) == "number" and serverNow - hitAt < HIT_SECONDS then
+		local k = math.sin(math.pi * math.max(serverNow - hitAt, 0) / HIT_SECONDS)
+		extra *= CFrame.new(0, 0, 0.6 * k) * CFrame.Angles(0.35 * k, 0, 0)
+	end
+	if extra ~= CFrame.identity then
+		for _, motor in entry.top do
+			motor.Transform = extra * motor.Transform
+		end
+	end
+end
+
 local function track(model: Instance)
 	if not model:IsA("Model") or entries[model] then
 		return
@@ -199,11 +225,15 @@ local function track(model: Instance)
 		seed = math.random() * 100,
 		static = {},
 		glitch = {},
+		top = {},
 	}
 	local glitching = model:GetAttribute("Glitch") == true
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("Motor6D") then
 			entry.joints[descendant.Name] = descendant
+			if descendant.Part0 == root then
+				table.insert(entry.top, descendant)
+			end
 		elseif descendant:IsA("BasePart") then
 			if descendant:GetAttribute("Static") then
 				table.insert(entry.static, descendant)
@@ -256,9 +286,15 @@ local function step()
 		local speed = entry.root.AssemblyLinearVelocity.Magnitude
 		local moving = math.clamp(speed / 6, 0, 1)
 		local animate = ANIMATIONS[entry.kind]
+		-- Zera as juntas da raiz antes de animar: o bote/tranco de antes não pode se acumular nas que a
+		-- animação do tipo não mexe.
+		for _, motor in entry.top do
+			motor.Transform = CFrame.identity
+		end
 		if animate then
 			animate(entry.joints, now + entry.seed, moving, model)
 		end
+		reactions(entry, workspace:GetServerTimeNow())
 		if flicker then
 			for _, screen in entry.static do
 				local gray = random:NextNumber(0.35, 1)

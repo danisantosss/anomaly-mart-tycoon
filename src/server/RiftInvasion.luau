@@ -3,7 +3,7 @@
 --
 -- Em algumas madrugadas (sempre na Lua Vermelha) a Fenda se abre de vez e sai o Colosso da Fenda, um monstro
 -- gigante que anda devagar pela faixa até o Ralo. Enquanto ele está vivo, a renda de todo mundo cai 20%
--- (Economy.incomeMultiplier) e não sai monstro novo da Fenda. Todo mundo pode chegar perto e apertar "Zap"
+-- (Economy.incomeMultiplier). Todo mundo pode chegar perto e apertar "Zap"
 -- para tirar vida dele. De tempos em tempos ele ergue os braços e bate no chão: quem estiver perto fica uns
 -- segundos sem conseguir dar Zap.
 --
@@ -60,7 +60,6 @@ local random = Random.new()
 
 local function setActive(value: boolean)
 	ReplicatedStorage:SetAttribute("InvasionActive", value)
-	StreetMonsters.setPaused(value)
 end
 
 local function makeBillboard(boss: Boss)
@@ -291,35 +290,47 @@ local function finish(boss: Boss, defeated: boolean)
 	tween:Play()
 end
 
-local function onZap(boss: Boss, player: Player)
+-- `amount` e `maxDistance` mudam no golpe do bastão (RiftInvasion.hit); o botão Zap usa os padrões.
+local function onZap(boss: Boss, player: Player, amount: number?, maxDistance: number?): boolean
 	if not boss.alive then
-		return
+		return false
 	end
 	local now = os.clock()
 	if now - (boss.lastZap[player] or 0) < Settings.ZAP_COOLDOWN then
-		return
+		return false
 	end
 	if now < (boss.stunnedUntil[player] or 0) then
-		return
+		return false
 	end
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if root == nil or not root:IsA("BasePart") then
-		return
+		return false
 	end
 	local flat =
 		Vector3.new(root.Position.X - boss.root.Position.X, 0, root.Position.Z - boss.root.Position.Z)
-	if flat.Magnitude > Settings.ZAP_DISTANCE + 6 then
-		return
+	if flat.Magnitude > (maxDistance or Settings.ZAP_DISTANCE + 6) then
+		return false
 	end
+	local dealt = amount or Settings.ZAP_DAMAGE
 	boss.lastZap[player] = now
-	boss.hits[player] = (boss.hits[player] or 0) + 1
-	boss.health -= Settings.ZAP_DAMAGE
+	boss.hits[player] = (boss.hits[player] or 0) + dealt
+	boss.health -= dealt
 	zapBeam(player, boss)
 	refreshBillboard(boss)
 	if boss.health <= 0 then
 		finish(boss, true)
 	end
+	return true
+end
+
+-- Golpe do bastão de choque (Weapons.luau): só vale de perto. Devolve true se acertou o Colosso.
+function RiftInvasion.hit(player: Player, amount: number): boolean
+	local boss = current
+	if boss == nil then
+		return false
+	end
+	return onZap(boss, player, amount, 9 * Settings.SCALE)
 end
 
 local function walk(boss: Boss)
