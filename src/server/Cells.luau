@@ -8,6 +8,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Anomalies = require(ReplicatedStorage.Shared.Anomalies)
+local Builds = require(ReplicatedStorage.Shared.Builds)
 local Config = require(ReplicatedStorage.Shared.Config)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -32,10 +33,17 @@ local renderVersion: { [Player]: number } = {}
 -- do dono até o roubo dar certo (ver Steal.luau). Chave fraca: some sozinho quando a cela é removida.
 local hidden: { [Data.CellData]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 
+-- Celas compradas: a sala dos fundos vem com uma e cada botão "Cell #N" soma mais uma (shared/Builds.luau).
 function Cells.capacity(player: Player): number
 	local data = Data.get(player)
-	local extra = if data then data.Upgrades.Cells or 0 else 0
-	return math.min(Street.START_CELLS + extra, Street.MAX_CELLS)
+	local cells = if data then Builds.sum(data.Builds, "cells") else 0
+	return math.min(cells, Street.MAX_CELLS)
+end
+
+-- Renda das máquinas da loja (vending, café, arcade...), que cai no cofre junto com a das celas.
+function Cells.passiveIncome(player: Player): number
+	local data = Data.get(player)
+	return if data then Builds.sum(data.Builds, "passive") else 0
 end
 
 function Cells.count(player: Player): number
@@ -132,7 +140,16 @@ local function updateLeaderstat(player: Player)
 	if stat and stat:IsA("IntValue") then
 		stat.Value = Cells.count(player)
 	end
-	player:SetAttribute("IncomePerSecond", Cells.totalIncome(player))
+	local multiplier = Economy.incomeMultiplier(player)
+	player:SetAttribute(
+		"IncomePerSecond",
+		(Cells.totalIncome(player) + Cells.passiveIncome(player)) * multiplier
+	)
+end
+
+-- Atualiza o placar e o $/s da HUD (depois de comprar uma máquina, ganhar um bônus...).
+function Cells.refreshIncome(player: Player)
+	updateLeaderstat(player)
 end
 
 -- Redesenha todas as celas da loja a partir dos dados salvos.
@@ -166,6 +183,12 @@ function Cells.tryAdd(player: Player, kind: string, variant: string): boolean
 		return false
 	end
 	table.insert(data.Cells, { Kind = kind, Variant = variant })
+	-- Index: guarda cada combinação tipo + variante já conseguida.
+	local key = `{kind}:{variant}`
+	if not data.Index[key] then
+		data.Index[key] = true
+		player:SetAttribute(Anomalies.indexAttribute(kind, variant), true)
+	end
 	Cells.render(player)
 	return true
 end
@@ -213,7 +236,8 @@ local function payOffline(player: Player, data: Data.PlayerData)
 	end
 
 	local seconds = math.min(away, settings.MAX_HOURS * 3600)
-	local earned = Economy.addToSafe(player, Cells.totalIncome(player) * settings.FRACTION * seconds)
+	local perSecond = Cells.totalIncome(player) + Cells.passiveIncome(player)
+	local earned = Economy.addToSafe(player, perSecond * settings.FRACTION * seconds)
 	if earned >= 1 then
 		Remotes.get("Notify"):FireClient(
 			player,
@@ -233,6 +257,12 @@ local function onStoreReady(player: Player)
 
 	local data = Data.waitFor(player)
 	if data then
+		for key in data.Index do
+			local kind, variant = string.match(key, "^(%w+):(%w+)$")
+			if kind and variant then
+				player:SetAttribute(Anomalies.indexAttribute(kind, variant), true)
+			end
+		end
 		Cells.render(player)
 		payOffline(player, data)
 	end
@@ -242,7 +272,7 @@ local function incomeLoop()
 	while true do
 		task.wait(1)
 		for _, player in Players:GetPlayers() do
-			local income = Cells.totalIncome(player)
+			local income = Cells.totalIncome(player) + Cells.passiveIncome(player)
 			if income > 0 then
 				Economy.addToSafe(player, income)
 			end

@@ -18,12 +18,15 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Anomalies = require(ReplicatedStorage.Shared.Anomalies)
+local BuildCatalog = require(ReplicatedStorage.Shared.Builds)
 local Config = require(ReplicatedStorage.Shared.Config)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local AnomalyLooks = require(script.Parent.AnomalyLooks)
+local Builds = require(script.Parent.Builds)
 local Cells = require(script.Parent.Cells)
 local CustomerModel = require(script.Parent.CustomerModel)
+local Data = require(script.Parent.Data)
 local DayNight = require(script.Parent.DayNight)
 local Economy = require(script.Parent.Economy)
 local Layout = require(script.Parent.Street.Layout)
@@ -49,6 +52,7 @@ export type Customer = {
 	kind: string, -- "Human" ou o id de uma anomalia (Shared/Anomalies.luau)
 	variant: string,
 	items: number,
+	price: number, -- preço de cada item, vindo do móvel onde ele pegou (geladeira 2x, comida 4x)
 	state: State,
 	escapes: number,
 	tutorial: boolean, -- primeira anomalia do jogador novo: dá para capturar de dia e não foge
@@ -63,6 +67,7 @@ type StoreState = {
 	customers: { Customer },
 	queue: { Customer },
 	nextSpawnAt: number,
+	nextSelfCheckoutAt: number,
 	penaltyUntil: number,
 	sales: number, -- clientes humanos cobrados nesta sessão
 	graceLeft: number, -- erros que ainda saem de graça nesta sessão (Config.Anomalies.MISTAKE_GRACE)
@@ -316,8 +321,9 @@ local function chargeOne(state: StoreState): boolean
 			)
 		end
 	else
-		local multiplier = if DayNight.isNight() then Settings.NIGHT_PRICE_MULTIPLIER else 1
-		local amount = Economy.addToSafe(state.owner, customer.items * Settings.ITEM_PRICE * multiplier)
+		local multiplier = (if DayNight.isNight() then Settings.NIGHT_PRICE_MULTIPLIER else 1)
+			* StoreUpgrades.priceMultiplier(state.owner)
+		local amount = Economy.addToSafe(state.owner, customer.items * customer.price * multiplier)
 		floatingText(state.counter, "+" .. NumberFormat.cash(amount), GOOD)
 		state.sales += 1
 	end
@@ -361,11 +367,21 @@ local function capture(state: StoreState, customer: Customer)
 		return
 	end
 
+	-- Primeira captura do tutorial sem sala dos fundos: a sala vem de presente, para ter onde guardar.
+	if customer.tutorial and Cells.capacity(state.owner) == 0 then
+		Builds.grant(state.owner, "Backroom")
+		tell(state.owner, "Your first anomaly needs a home: the Back Room is on the house!", INFO)
+	end
+
 	if not Cells.tryAdd(state.owner, customer.kind, customer.variant) then
 		tell(state.owner, "No free cell! Upgrade your cells or refuse it.", INFO)
 		return
 	end
 
+	local data = Data.get(state.owner)
+	if data then
+		data.TotalCaptured += 1
+	end
 	tell(state.owner, `Captured: {nameOf(customer)}!`, GOOD)
 	vanish(state, customer)
 end
@@ -472,6 +488,7 @@ function shop(state: StoreState, customer: Customer)
 	-- O Salt Buyer leva tudo o que tiver na prateleira.
 	local wanted = if customer.kind == "SaltBuyer" then math.huge else customer.items
 	customer.items = Shelves.take(shelf, wanted)
+	customer.price = Settings.ITEM_PRICE * Shelves.priceMultiplier(shelf)
 	if customer.items == 0 and not isAnomaly(customer) then
 		leave(state, customer) -- prateleira vazia: vai embora sem comprar
 		return
@@ -558,6 +575,7 @@ local function spawnCustomer(state: StoreState)
 		kind = kind,
 		variant = variant,
 		items = random:NextInteger(Settings.MIN_ITEMS, Settings.MAX_ITEMS),
+		price = Settings.ITEM_PRICE,
 		state = "Shopping",
 		escapes = 0,
 		tutorial = tutorial,
@@ -620,6 +638,7 @@ local function setupStore(player: Player)
 		customers = {},
 		queue = {},
 		nextSpawnAt = os.clock() + 2,
+		nextSelfCheckoutAt = 0,
 		penaltyUntil = 0,
 		sales = 0,
 		graceLeft = AnomalySettings.MISTAKE_GRACE,
@@ -642,6 +661,21 @@ local function setupStore(player: Player)
 			end
 		end
 	)
+end
+
+-- Self-checkout comprado: cobra sozinho o primeiro da fila se for humano. Anomalia trava a fila até o dono
+-- decidir, então ainda vale ficar de olho no caixa.
+local function selfCheckout(owner: Player, state: StoreState, now: number)
+	local data = Data.get(owner)
+	local interval = data and BuildCatalog.selfCheckoutInterval(data.Builds)
+	if interval == nil or now < state.nextSelfCheckoutAt then
+		return
+	end
+	state.nextSelfCheckoutAt = now + interval
+	local first = state.queue[1]
+	if first and not isAnomaly(first) then
+		chargeOne(state)
+	end
 end
 
 local function spawnLoop()
@@ -669,6 +703,7 @@ local function spawnLoop()
 				state.nextSpawnAt = now + interval
 				task.spawn(spawnCustomer, state)
 			end
+			selfCheckout(owner, state, now)
 		end
 	end
 end

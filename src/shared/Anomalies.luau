@@ -154,6 +154,11 @@ function Anomalies.income(id: string, variantId: string): number
 	return definition.incomePerSecond * Anomalies.getVariant(variantId).multiplier
 end
 
+-- Atributo do jogador que diz se ele já conseguiu essa anomalia nessa variante (Index).
+function Anomalies.indexAttribute(id: string, variantId: string): string
+	return `Index_{id}_{variantId}`
+end
+
 -- "Shiny Long Neck", ou só "Long Neck" na variante normal.
 function Anomalies.fullName(id: string, variantId: string): string
 	local definition = byId[id]

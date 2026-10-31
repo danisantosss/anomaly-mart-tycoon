@@ -19,9 +19,17 @@ export type CellData = {
 export type PlayerData = {
 	Cash: number,
 	SafeBalance: number, -- dinheiro no cofre, ainda não coletado
-	LastLogout: number, -- os.time() da última saída, para o ganho offline (PR 8)
-	Upgrades: { [string]: number }, -- nível de cada upgrade (PR 8)
-	Cells: { CellData }, -- anomalias contidas (PR 6)
+	LastLogout: number, -- os.time() da última saída, para o ganho offline
+	Upgrades: { [string]: number }, -- nível de cada upgrade do terminal (shared/Upgrades.luau)
+	Cells: { CellData }, -- anomalias contidas
+	Builds: { [string]: boolean }, -- partes da loja compradas nos botões do chão (shared/Builds.luau)
+	Franchise: number, -- quantas Franquias (rebirths) já abriu
+	Index: { [string]: boolean }, -- anomalias já capturadas, por "Tipo:Variante" (Index)
+	Codes: { [string]: boolean }, -- códigos já usados
+	DailyStreak: number, -- dias seguidos pegando a recompensa diária
+	DailyLastDay: number, -- dia (os.time() // 86400) da última recompensa diária
+	TotalEarned: number, -- tudo que já entrou no cofre (placar global)
+	TotalCaptured: number,
 }
 
 local TEMPLATE: PlayerData = {
@@ -30,10 +38,19 @@ local TEMPLATE: PlayerData = {
 	LastLogout = 0,
 	Upgrades = {},
 	Cells = {},
+	Builds = {},
+	Franchise = 0,
+	Index = {},
+	Codes = {},
+	DailyStreak = 0,
+	DailyLastDay = 0,
+	TotalEarned = 0,
+	TotalCaptured = 0,
 }
 
 -- Mudar o nome cria um banco novo e zera todo mundo. Só fazer isso antes do lançamento.
-local store = ProfileStore.New("PlayerData_v1", TEMPLATE)
+-- v2: a loja passou a começar como barraquinha e crescer com compras (os saves da v1 não servem mais).
+local store = ProfileStore.New("PlayerData_v2", TEMPLATE)
 
 local profiles: { [Player]: any } = {}
 

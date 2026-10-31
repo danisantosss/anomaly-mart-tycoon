@@ -116,6 +116,7 @@ function Economy.addToSafe(player: Player, amount: number): number
 	end
 	amount *= Economy.incomeMultiplier(player)
 	data.SafeBalance += amount
+	data.TotalEarned += amount
 	refresh(player)
 	return amount
 end

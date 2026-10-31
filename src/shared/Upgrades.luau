@@ -10,22 +10,39 @@ export type Definition = {
 	description: string,
 	maxLevel: number,
 	baseCost: number,
+	requiresBuild: string?, -- parte da loja que precisa ter (shared/Builds.luau)
 }
 
+-- Prateleiras, celas e letreiro viraram partes da loja (botões do chão, shared/Builds.luau). Aqui ficam os
+-- upgrades "de número" do terminal.
 local LIST: { Definition } = {
 	{
-		id = "Shelves",
-		displayName = "More Shelves",
-		description = "+1 shelf. More stock, more sales.",
+		id = "PremiumProducts",
+		displayName = "Premium Products",
+		description = "+15% price on everything you sell.",
+		maxLevel = 10,
+		baseCost = 200,
+	},
+	{
+		id = "BigShelves",
+		displayName = "Bigger Shelves",
+		description = "+4 stock on every shelf and fridge.",
 		maxLevel = 5,
-		baseCost = 100,
+		baseCost = 300,
+	},
+	{
+		id = "Advertising",
+		displayName = "Advertising",
+		description = "+10% customers.",
+		maxLevel = 5,
+		baseCost = 400,
 	},
 	{
 		id = "FastRegister",
 		displayName = "Fast Register",
 		description = "Charge +1 customer per press.",
 		maxLevel = 3,
-		baseCost = 250,
+		baseCost = 500,
 	},
 	{
 		id = "Sneakers",
@@ -39,26 +56,21 @@ local LIST: { Definition } = {
 		displayName = "Flashlight",
 		description = "Capture anomalies faster.",
 		maxLevel = 3,
-		baseCost = 300,
+		baseCost = 600,
+		requiresBuild = "Backroom",
 	},
 	{
-		id = "Cells",
-		displayName = "Containment Cell",
-		description = "+1 cell for anomalies.",
-		maxLevel = 9,
-		baseCost = 500,
-	},
-	{
-		id = "Sign",
-		displayName = "Neon Sign",
-		description = "+10% customers.",
+		id = "DoorLock",
+		displayName = "Reinforced Lock",
+		description = "Steel door stays locked +20s.",
 		maxLevel = 3,
-		baseCost = 400,
+		baseCost = 2500,
+		requiresBuild = "SteelDoor",
 	},
 }
 
 Upgrades.LIST = LIST
-Upgrades.COST_GROWTH = 1.6 -- cada nível custa 1,6× o anterior
+Upgrades.COST_GROWTH = 1.7 -- cada nível custa 1,7× o anterior
 
 local byId: { [string]: Definition } = {}
 for _, definition in LIST do

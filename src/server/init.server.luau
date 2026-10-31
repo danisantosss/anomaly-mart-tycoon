@@ -4,6 +4,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Builds = require(script.Builds)
 local Cells = require(script.Cells)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Customers = require(script.Customers)
@@ -23,8 +24,9 @@ DayNight.start()
 Shelves.start()
 Cells.start()
 StoreUpgrades.start()
+Door.start()
+Builds.start() -- reconstrói o que o jogador comprou: depois de Shelves, Cells, StoreUpgrades e Door
 Customers.start()
 Steal.start()
-Door.start()
 
 print(`[Anomaly Mart] servidor iniciado (v{Config.VERSION})`)

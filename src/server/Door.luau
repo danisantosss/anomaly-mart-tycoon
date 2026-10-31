@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Plots = require(script.Parent.Plots)
+local StoreUpgrades = require(script.Parent.StoreUpgrades)
 
 local Settings = Config.Door
 
@@ -31,10 +32,12 @@ local function setLocked(door: BasePart, locked: boolean)
 	door.Color = LOCKED_COLOR
 end
 
-local function setup(player: Player)
+-- Liga o botão "Lock Door" na porta de aço do jogador. Só existe depois de comprar a Steel Door
+-- (Builds.luau chama isto). Não faz nada se já estiver ligado.
+function Door.setup(player: Player)
 	local store = Plots.getStore(player)
 	local door = store and store:FindFirstChild("BackDoor")
-	if door == nil or not door:IsA("BasePart") then
+	if door == nil or not door:IsA("BasePart") or door:FindFirstChild("LockPrompt") then
 		return
 	end
 
@@ -57,25 +60,29 @@ local function setup(player: Player)
 			return
 		end
 		local now = os.clock()
-		local readyIn = lockedAt + Settings.COOLDOWN_SECONDS - now
+		local readyIn = lockedAt
+			+ math.max(Settings.COOLDOWN_SECONDS, StoreUpgrades.doorLockSeconds(player) + 30)
+			- now
 		if readyIn > 0 then
 			notify:FireClient(player, `Steel door ready in {format(readyIn)}.`, Color3.fromRGB(255, 230, 140))
 			return
 		end
 
 		lockedAt = now
+		local lockSeconds = StoreUpgrades.doorLockSeconds(player)
+		local cooldown = math.max(Settings.COOLDOWN_SECONDS, lockSeconds + 30)
 		setLocked(door, true)
 		task.spawn(function()
 			while door.Parent ~= nil do
 				local elapsed = os.clock() - lockedAt
-				if elapsed >= Settings.COOLDOWN_SECONDS then
+				if elapsed >= cooldown then
 					prompt.ActionText = "Lock Door"
 					return
-				elseif elapsed >= Settings.LOCK_SECONDS then
+				elseif elapsed >= lockSeconds then
 					setLocked(door, false)
-					prompt.ActionText = `Ready in {format(Settings.COOLDOWN_SECONDS - elapsed)}`
+					prompt.ActionText = `Ready in {format(cooldown - elapsed)}`
 				else
-					prompt.ActionText = `Locked {format(Settings.LOCK_SECONDS - elapsed)}`
+					prompt.ActionText = `Locked {format(lockSeconds - elapsed)}`
 				end
 				task.wait(0.5)
 			end
@@ -86,7 +93,7 @@ end
 -- Precisa rodar depois de Plots.start().
 function Door.start()
 	notify = Remotes.get("Notify")
-	Plots.onStoreReady(setup)
+	Plots.onStoreReady(Door.setup)
 end
 
 return Door

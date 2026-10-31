@@ -1,18 +1,18 @@
 --!strict
--- Compra e efeitos dos upgrades da loja (docs/V1.md, seção 7). O catálogo e os preços ficam em
+-- Compra e efeitos dos upgrades do terminal (docs/V2.md). O catálogo e os preços ficam em
 -- Shared/Upgrades.luau; aqui o servidor valida a compra, salva o nível e aplica o efeito.
+-- As funções de efeito também somam o que vem das partes compradas da loja (shared/Builds.luau).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Builds = require(ReplicatedStorage.Shared.Builds)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Upgrades = require(ReplicatedStorage.Shared.Upgrades)
-local Cells = require(script.Parent.Cells)
 local Data = require(script.Parent.Data)
 local Economy = require(script.Parent.Economy)
 local Plots = require(script.Parent.Plots)
 local Shelves = require(script.Parent.Shelves)
-local StoreBuilder = require(script.Parent.Street.StoreBuilder)
 
 local Effects = Config.UpgradeEffects
 
@@ -36,14 +36,31 @@ function StoreUpgrades.captureHoldSeconds(player: Player): number
 	return math.max(hold, Effects.FLASHLIGHT_MIN_HOLD)
 end
 
--- Quantos clientes um "Charge" atende de uma vez.
-function StoreUpgrades.chargeBatch(player: Player): number
-	return 1 + StoreUpgrades.level(player, "FastRegister")
+local function owned(player: Player): { [string]: boolean }
+	local data = Data.get(player)
+	return if data then data.Builds else {}
 end
 
--- Multiplica a chegada de clientes (1.1 = 10% a mais).
+-- Quantos clientes um "Charge" atende de uma vez.
+function StoreUpgrades.chargeBatch(player: Player): number
+	return 1 + StoreUpgrades.level(player, "FastRegister") + Builds.sum(owned(player), "chargeBatch")
+end
+
+-- Multiplica a chegada de clientes (1.1 = 10% a mais): upgrade de propaganda + decoração da loja.
 function StoreUpgrades.customerRate(player: Player): number
-	return 1 + StoreUpgrades.level(player, "Sign") * Effects.SIGN_CUSTOMERS_PER_LEVEL
+	return 1
+		+ StoreUpgrades.level(player, "Advertising") * Effects.ADVERTISING_CUSTOMERS_PER_LEVEL
+		+ Builds.sum(owned(player), "customers")
+end
+
+-- Multiplica o preço dos itens vendidos (Premium Products).
+function StoreUpgrades.priceMultiplier(player: Player): number
+	return 1 + StoreUpgrades.level(player, "PremiumProducts") * Effects.PREMIUM_PRICE_PER_LEVEL
+end
+
+function StoreUpgrades.doorLockSeconds(player: Player): number
+	return Config.Door.LOCK_SECONDS
+		+ StoreUpgrades.level(player, "DoorLock") * Effects.DOOR_LOCK_SECONDS_PER_LEVEL
 end
 
 local function applySpeed(player: Player)
@@ -55,22 +72,15 @@ local function applySpeed(player: Player)
 	end
 end
 
--- Cria as prateleiras que faltam para o nível atual.
-local function applyShelves(player: Player)
+-- Bigger Shelves: o bônus de estoque fica num atributo da loja, que o Shelves.luau soma em cada móvel.
+local function applyShelfBonus(player: Player)
 	local store = Plots.getStore(player)
-	local origin = Plots.getOrigin(player)
-	local folder = store and store:FindFirstChild("Shelves")
-	if store == nil or origin == nil or folder == nil then
-		return
-	end
-	local wanted = math.min(
-		Config.Street.START_SHELVES + StoreUpgrades.level(player, "Shelves"),
-		Config.Street.MAX_SHELVES
-	)
-	for index = 1, wanted do
-		if folder:FindFirstChild(`Shelf{index}`) == nil then
-			Shelves.setup(player, StoreBuilder.addShelf(origin, store, index))
-		end
+	if store then
+		store:SetAttribute(
+			"ShelfBonus",
+			StoreUpgrades.level(player, "BigShelves") * Effects.BIG_SHELVES_CAPACITY_PER_LEVEL
+		)
+		Shelves.refreshLabels(store)
 	end
 end
 
@@ -82,9 +92,8 @@ end
 
 local function applyAll(player: Player)
 	publishLevels(player)
-	applyShelves(player)
+	applyShelfBonus(player)
 	applySpeed(player)
-	Cells.render(player)
 end
 
 function StoreUpgrades.buy(player: Player, id: string)
@@ -95,6 +104,12 @@ function StoreUpgrades.buy(player: Player, id: string)
 	end
 
 	local current = data.Upgrades[id] or 0
+	if definition.requiresBuild and not data.Builds[definition.requiresBuild] then
+		local piece = Builds.get(definition.requiresBuild)
+		local name = if piece then piece.displayName else definition.requiresBuild
+		notify:FireClient(player, `Build the {name} first!`, Color3.fromRGB(255, 230, 140))
+		return
+	end
 	if current >= definition.maxLevel then
 		notify:FireClient(player, `{definition.displayName} is already maxed!`, Color3.fromRGB(255, 230, 140))
 		return
@@ -128,6 +143,11 @@ local function setupTerminal(player: Player)
 	prompt.RequiresLineOfSight = false
 	prompt:SetAttribute("OwnerUserId", player.UserId)
 	prompt.Parent = terminal
+end
+
+-- Chamado de novo pelo Builds depois de a loja ser reconstruída (Franquia).
+function StoreUpgrades.applyAll(player: Player)
+	applyAll(player)
 end
 
 local function onStoreReady(player: Player)
