@@ -341,16 +341,16 @@ Config.Combat = {
 	BEHAVIORS = {
 		Gloop = { mode = "Wander", speed = 5 },
 		MimicCrate = { mode = "Ambush", speed = 12, health = 6, damage = 10, aggro = 11 },
-		SkullHound = { mode = "Hunt", speed = 13, health = 8, damage = 10, aggro = 30 },
+		SkullHound = { mode = "Hunt", speed = 13, health = 8, damage = 8, aggro = 30 },
 		EyeSpider = { mode = "Flee", speed = 13, aggro = 16 },
-		TVHead = { mode = "Hunt", speed = 8, health = 14, damage = 15, aggro = 24 },
+		TVHead = { mode = "Hunt", speed = 8, health = 14, damage = 12, aggro = 24 },
 		StaticJelly = { mode = "Wander", speed = 4, health = 10, damage = 8, aura = 8 },
-		MothMonarch = { mode = "Hunt", speed = 15, health = 20, damage = 18, aggro = 36 },
-		TheTallOne = { mode = "Blink", speed = 6, health = 35, damage = 25, aggro = 40 },
-		RiftKing = { mode = "Hunt", speed = 9, health = 60, damage = 30, aggro = 30 },
+		MothMonarch = { mode = "Hunt", speed = 15, health = 20, damage = 12, aggro = 36 },
+		TheTallOne = { mode = "Blink", speed = 6, health = 35, damage = 20, aggro = 40 },
+		RiftKing = { mode = "Hunt", speed = 9, health = 60, damage = 18, aggro = 30 },
 	},
 	ATTACK_RANGE = 5, -- além do tamanho do monstro
-	ATTACK_COOLDOWN = 1.6,
+	ATTACK_COOLDOWN = 2.2, -- dá tempo de reagir com o bastão antes de morrer
 	AURA_EVERY_SECONDS = 2,
 	CHASE_GIVE_UP_SECONDS = 10, -- persegue por no máximo isto e volta para a faixa
 	LEASH_Z = 26, -- não sai mais que isto do meio da rua (até a calçada; não invade as lojas)

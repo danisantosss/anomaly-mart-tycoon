@@ -201,7 +201,9 @@ local function play(event: Event)
 	ReplicatedStorage:SetAttribute("EventEndsAt", nil)
 end
 
--- Começa um evento pelo nome (ou um sorteado). Útil para testar pelo console do Studio.
+-- Começa um evento pelo nome (ou o primeiro da lista).
+-- Para testar no Studio, NÃO dê require pela barra de comandos (isso cria outra cópia do módulo). Use:
+--   workspace:SetAttribute("DebugEvent", "CASH RAIN")
 function RandomEvents.trigger(name: string?)
 	for _, event in EVENTS do
 		if name == nil or event.name == name then
@@ -213,6 +215,15 @@ end
 
 function RandomEvents.start()
 	notify = Remotes.get("Notify")
+	if RunService:IsStudio() then
+		workspace:GetAttributeChangedSignal("DebugEvent"):Connect(function()
+			local name = workspace:GetAttribute("DebugEvent")
+			if typeof(name) == "string" and name ~= "" then
+				workspace:SetAttribute("DebugEvent", nil)
+				RandomEvents.trigger(name)
+			end
+		end)
+	end
 	task.spawn(function()
 		local last: Event? = nil
 		while true do
