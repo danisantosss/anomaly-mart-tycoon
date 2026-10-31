@@ -47,6 +47,12 @@ function Plots.getStore(player: Player): Model?
 	return if store and store:IsA("Model") then store else nil
 end
 
+-- CFrame do terreno do jogador (centro, no chão, olhando para a rua). Ver Street/Layout.luau.
+function Plots.getOrigin(player: Player): CFrame?
+	local index = plotByPlayer[player]
+	return if index then Layout.plotCFrame(index) else nil
+end
+
 function Plots.getPlotIndex(player: Player): number?
 	return plotByPlayer[player]
 end
