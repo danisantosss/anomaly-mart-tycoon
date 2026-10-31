@@ -164,6 +164,7 @@ local function connectSafe(player: Player)
 	end
 
 	attachSafeLabel(player, safe)
+	refresh(player)
 
 	safe.Touched:Connect(function(hit)
 		local character = hit:FindFirstAncestorOfClass("Model")
@@ -181,7 +182,6 @@ local function onPlayerAdded(player: Player)
 		return
 	end
 
-	connectSafe(player)
 	refresh(player)
 end
 
@@ -211,6 +211,7 @@ end
 function Economy.start()
 	cashCollected = Remotes.get("CashCollected")
 
+	Plots.onStoreReady(connectSafe)
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	Players.PlayerRemoving:Connect(onPlayerRemoving)
 	for _, player in Players:GetPlayers() do

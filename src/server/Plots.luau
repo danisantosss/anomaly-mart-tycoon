@@ -61,6 +61,19 @@ function Plots.getOwner(plotIndex: number): Player?
 	return ownerByPlot[plotIndex]
 end
 
+-- Funções que preparam a loja de um jogador (prateleiras, caixa, porta...). Ver Plots.onStoreReady.
+local storeReadyCallbacks: { (Player) -> () } = {}
+
+-- Chama `callback(player)` para cada loja já construída e para cada loja nova, logo depois de construída.
+-- Use isto em vez de Players.PlayerAdded: o Roblox não garante a ordem dos PlayerAdded, então outro sistema
+-- poderia rodar antes da loja existir.
+function Plots.onStoreReady(callback: (Player) -> ())
+	table.insert(storeReadyCallbacks, callback)
+	for player in plotByPlayer do
+		task.spawn(callback, player)
+	end
+end
+
 local function teleportToStore(player: Player, character: Model)
 	local store = Plots.getStore(player)
 	if store == nil then
@@ -88,6 +101,9 @@ local function onPlayerAdded(player: Player)
 	plot:SetAttribute("OwnerUserId", player.UserId)
 	setAvailableSign(plot, false)
 	StoreBuilder.build(Layout.plotCFrame(index), player, plot)
+	for _, callback in storeReadyCallbacks do
+		task.spawn(callback, player)
+	end
 
 	player.CharacterAdded:Connect(function(character)
 		teleportToStore(player, character)

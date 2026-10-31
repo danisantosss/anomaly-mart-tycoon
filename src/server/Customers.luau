@@ -631,13 +631,10 @@ function Customers.start()
 		false
 	)
 
-	Players.PlayerAdded:Connect(setupStore)
+	Plots.onStoreReady(setupStore)
 	Players.PlayerRemoving:Connect(function(player)
 		stores[player] = nil
 	end)
-	for _, player in Players:GetPlayers() do
-		task.spawn(setupStore, player)
-	end
 
 	task.spawn(spawnLoop)
 end

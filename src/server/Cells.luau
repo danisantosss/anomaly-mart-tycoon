@@ -223,7 +223,7 @@ local function payOffline(player: Player, data: Data.PlayerData)
 	end
 end
 
-local function onPlayerAdded(player: Player)
+local function onStoreReady(player: Player)
 	local leaderstats = player:WaitForChild("leaderstats", 10)
 	if leaderstats and leaderstats:FindFirstChild("Anomalies") == nil then
 		local stat = Instance.new("IntValue")
@@ -252,13 +252,10 @@ end
 
 -- Precisa rodar depois de Plots.start() e Economy.start().
 function Cells.start()
-	Players.PlayerAdded:Connect(onPlayerAdded)
+	Plots.onStoreReady(onStoreReady)
 	Players.PlayerRemoving:Connect(function(player)
 		renderVersion[player] = nil
 	end)
-	for _, player in Players:GetPlayers() do
-		task.spawn(onPlayerAdded, player)
-	end
 	task.spawn(incomeLoop)
 end
 
