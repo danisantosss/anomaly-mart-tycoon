@@ -6,5 +6,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Hud = require(script.Hud)
+
+Hud.start()
 
 print(`[Anomaly Mart] cliente iniciado para {Players.LocalPlayer.Name} (v{Config.VERSION})`)
