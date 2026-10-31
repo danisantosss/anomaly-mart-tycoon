@@ -1,5 +1,5 @@
 --!strict
--- Botões laterais (meio da tela, à esquerda): SHOP, INDEX, GIFTS e FRANCHISE. Abrem as janelas sem precisar
+-- Botões laterais (meio da tela, à esquerda): SHOP, INDEX, LURE, GIFTS e FRANCHISE. Abrem as janelas sem precisar
 -- andar até o terminal. O botão de presentes ganha um "!" quando tem algo para pegar.
 -- Tamanho em escala com mínimo em pixels, para dar para tocar no celular.
 
@@ -8,6 +8,7 @@ local Players = game:GetService("Players")
 local Ui = require(script.Parent.Ui)
 local FranchiseUi = require(script.Parent.FranchiseUi)
 local IndexUi = require(script.Parent.IndexUi)
+local LureUi = require(script.Parent.LureUi)
 local RewardsUi = require(script.Parent.RewardsUi)
 local UpgradesUi = require(script.Parent.UpgradesUi)
 
@@ -20,6 +21,7 @@ type Entry = { label: string, color: Color3, toggle: () -> () }
 local ENTRIES: { Entry } = {
 	{ label = "SHOP", color = Ui.GREEN, toggle = UpgradesUi.toggle },
 	{ label = "INDEX", color = Color3.fromRGB(140, 90, 210), toggle = IndexUi.toggle },
+	{ label = "LURE", color = Color3.fromRGB(90, 60, 200), toggle = LureUi.toggle },
 	{ label = "GIFTS", color = Ui.GOLD, toggle = RewardsUi.toggle },
 	{ label = "FRANCHISE", color = Color3.fromRGB(210, 70, 90), toggle = FranchiseUi.toggle },
 }
@@ -37,8 +39,8 @@ function Menu.start()
 	column.Size = UDim2.fromScale(0.11, 0.42)
 	column.Parent = gui
 	local constraint = Instance.new("UISizeConstraint")
-	constraint.MinSize = Vector2.new(84, 200)
-	constraint.MaxSize = Vector2.new(150, 320)
+	constraint.MinSize = Vector2.new(84, 250)
+	constraint.MaxSize = Vector2.new(150, 400)
 	constraint.Parent = column
 	local layout = Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0.03, 0)
@@ -47,7 +49,7 @@ function Menu.start()
 
 	local badge: TextLabel? = nil
 	for index, entry in ENTRIES do
-		local button = Ui.button(column, UDim2.fromScale(1, 0.22), UDim2.new(), entry.color)
+		local button = Ui.button(column, UDim2.fromScale(1, 0.17), UDim2.new(), entry.color)
 		button.LayoutOrder = index
 		button.Text = entry.label
 		button.Activated:Connect(entry.toggle)

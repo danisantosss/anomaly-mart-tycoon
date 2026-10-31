@@ -13,6 +13,8 @@ local NAMES = {
 	"ClaimGift", -- cliente → servidor: pegar o próximo presente de tempo jogado
 	"RedeemCode", -- cliente → servidor (code: string)
 	"OpenFranchise", -- cliente → servidor: abrir uma Franquia (rebirth)
+	"ChooseLure", -- cliente → servidor (kind: string): escolheu o monstro da Isca da Fenda
+	"LureApproved", -- servidor → cliente (productId: number): pode abrir a compra
 }
 
 local FOLDER_NAME = "Remotes"

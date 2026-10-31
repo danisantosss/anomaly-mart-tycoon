@@ -44,6 +44,16 @@ type Wanderer = {
 	lane: number, -- deslocamento em Z dentro da faixa
 	claimedBy: Player?,
 	status: TextLabel,
+	tag: TextLabel, -- linha de cima do letreiro (raridade, ou "LURED BY ...")
+	reservedFor: Player?, -- Isca da Fenda: só este jogador captura até `reservedUntil`
+	reservedUntil: number,
+}
+
+-- Isca da Fenda (RiftLure.luau): monstro escolhido e pago com Robux, que sai do bueiro mais perto da loja.
+type Lure = {
+	kind: string,
+	manhole: number,
+	player: Player,
 }
 
 local StreetMonsters = {}
@@ -102,7 +112,7 @@ local function vanish(wanderer: Wanderer)
 	tween:Play()
 end
 
-local function makeBillboard(wanderer: Wanderer, height: number): TextLabel
+local function makeBillboard(wanderer: Wanderer, height: number): (TextLabel, TextLabel)
 	local definition = Anomalies.get(wanderer.kind)
 	local rarity = if definition then definition.rarity else "Common"
 	local color = Anomalies.RARITY_COLORS[rarity]
@@ -129,10 +139,12 @@ local function makeBillboard(wanderer: Wanderer, height: number): TextLabel
 		return label
 	end
 
-	line(string.upper(rarity), 0, color, 0.2)
+	local tag = line(string.upper(rarity), 0, color, 0.2)
 	line(Anomalies.fullName(wanderer.kind, wanderer.variant), 0.2, Color3.new(1, 1, 1), 0.3)
 	line(`{NumberFormat.cash(Anomalies.income(wanderer.kind, wanderer.variant))}/s`, 0.5, GOOD, 0.22)
-	return line(NumberFormat.cash(Anomalies.captureCost(wanderer.kind, wanderer.variant)), 0.72, INFO, 0.26)
+	local price =
+		line(NumberFormat.cash(Anomalies.captureCost(wanderer.kind, wanderer.variant)), 0.72, INFO, 0.26)
+	return price, tag
 end
 
 local function freeCells(player: Player): number
@@ -184,6 +196,14 @@ local function capture(wanderer: Wanderer, player: Player)
 	end
 	if Plots.getStore(player) == nil or Data.get(player) == nil then
 		return
+	end
+	local reservedFor = wanderer.reservedFor
+	if reservedFor and reservedFor ~= player and reservedFor.Parent == Players then
+		local left = math.ceil(wanderer.reservedUntil - os.clock())
+		if left > 0 then
+			tell(player, `{reservedFor.DisplayName} lured this one. It's theirs for {left}s more!`, INFO)
+			return
+		end
 	end
 	if Cells.capacity(player) == 0 then
 		tell(player, "Build the Back Room first: monsters need a cell!", INFO)
@@ -250,14 +270,17 @@ end
 
 -- `boost` multiplica a sorte de raridade; `force` ignora o limite de monstros na rua (chuva de monstros
 -- depois da Invasão da Fenda).
-local function spawnOne(startX: number?, boost: number?, force: boolean?)
+-- `lure` = monstro chamado pela Isca da Fenda: tipo escolhido, variante normal, sai do bueiro dado.
+local function spawnOne(startX: number?, boost: number?, force: boolean?, lure: Lure?)
 	if #wanderers >= Settings.MAX_ON_STREET and not force then
 		return
 	end
 	local rarityLuck, variantLuck = luck()
 	rarityLuck *= boost or 1
-	local definition = Anomalies.pickStreet(random, rarityLuck)
-	local variant = Anomalies.pickVariant(random, variantLuck).id
+	local definition = if lure
+		then Anomalies.get(lure.kind) :: Anomalies.Definition
+		else Anomalies.pickStreet(random, rarityLuck)
+	local variant = if lure then "Normal" else Anomalies.pickVariant(random, variantLuck).id
 
 	local model = Models.build(definition.id, variant, true)
 	local root = model.PrimaryPart :: BasePart
@@ -269,8 +292,8 @@ local function spawnOne(startX: number?, boost: number?, force: boolean?)
 	local boxCFrame, boxSize = model:GetBoundingBox()
 	local top = boxCFrame.Position.Y + boxSize.Y / 2 - root.Position.Y
 	-- De onde sai: posição dada (monstros iniciais), um bueiro no meio da rua ou a Fenda.
-	local manhole: number? = nil
-	if startX == nil and random:NextNumber() < Settings.MANHOLE_CHANCE then
+	local manhole: number? = if lure then lure.manhole else nil
+	if startX == nil and manhole == nil and random:NextNumber() < Settings.MANHOLE_CHANCE then
 		manhole = random:NextInteger(1, #Layout.MANHOLES)
 	end
 	local x = startX or (if manhole then Layout.MANHOLES[manhole] else Layout.RIFT_X)
@@ -295,8 +318,23 @@ local function spawnOne(startX: number?, boost: number?, force: boolean?)
 		lane = lane,
 		claimedBy = nil,
 		status = nil :: any,
+		tag = nil :: any,
+		reservedFor = if lure then lure.player else nil,
+		reservedUntil = os.clock() + Config.RiftLure.RESERVE_SECONDS,
 	}
-	wanderer.status = makeBillboard(wanderer, top)
+	wanderer.status, wanderer.tag = makeBillboard(wanderer, top)
+	if lure then
+		-- Mostra de quem é a reserva e volta a mostrar a raridade quando ela acaba.
+		local rarityText, rarityColor = wanderer.tag.Text, wanderer.tag.TextColor3
+		wanderer.tag.Text = `LURED BY {string.upper(lure.player.DisplayName)}`
+		wanderer.tag.TextColor3 = Color3.fromRGB(255, 220, 90)
+		task.delay(Config.RiftLure.RESERVE_SECONDS, function()
+			if wanderer.claimedBy == nil and wanderer.model.Parent then
+				wanderer.tag.Text = rarityText
+				wanderer.tag.TextColor3 = rarityColor
+			end
+		end)
+	end
 	table.insert(wanderers, wanderer)
 
 	local prompt = Instance.new("ProximityPrompt")
@@ -327,7 +365,12 @@ local function spawnOne(startX: number?, boost: number?, force: boolean?)
 		end
 	end
 
-	if Settings.ANNOUNCE[definition.rarity] then
+	if lure then
+		notify:FireAllClients(
+			`{lure.player.DisplayName} lured a {definition.displayName} out of the sewer! It's theirs for {Config.RiftLure.RESERVE_SECONDS}s.`,
+			Color3.fromRGB(255, 220, 90)
+		)
+	elseif Settings.ANNOUNCE[definition.rarity] then
 		notify:FireAllClients(
 			`A {string.upper(definition.rarity)} {Anomalies.fullName(definition.id, variant)} crawled out of the Rift!`,
 			Anomalies.RARITY_COLORS[definition.rarity]
@@ -371,6 +414,27 @@ local function spawnInterval(): number
 		return Settings.SPAWN_SECONDS_NIGHT
 	end
 	return Settings.SPAWN_SECONDS_DAY
+end
+
+-- Isca da Fenda: chama o monstro `kind` (variante normal) pelo bueiro mais perto da loja do jogador. Só ele
+-- pode capturar nos primeiros Config.RiftLure.RESERVE_SECONDS. Devolve false se não deu para chamar.
+function StreetMonsters.summon(player: Player, kind: string): boolean
+	local origin = Plots.getOrigin(player)
+	if origin == nil or Anomalies.get(kind) == nil then
+		return false
+	end
+	local nearest, best = 1, math.huge
+	for index, x in Layout.MANHOLES do
+		local distance = math.abs(x - origin.Position.X)
+		if distance < best then
+			nearest, best = index, distance
+		end
+	end
+	local ok, problem = pcall(spawnOne, nil, nil, true, { kind = kind, manhole = nearest, player = player })
+	if not ok then
+		warn(`[StreetMonsters] {problem}`)
+	end
+	return ok
 end
 
 -- Pausa (ou volta) a saída de monstros da Fenda.

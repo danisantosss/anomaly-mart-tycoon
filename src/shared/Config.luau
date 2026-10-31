@@ -316,6 +316,19 @@ Config.RiftInvasion = {
 	LOOT_LUCK = 4, -- sorte de raridade desses monstros
 }
 
+-- Isca da Fenda (server/RiftLure.luau, docs/V3.md seção 8): produto de Robux que chama um monstro ESCOLHIDO
+-- pelo jogador (nada sorteado). Ele sai do bueiro mais perto da loja, e o jogador ainda paga o preço normal em
+-- dinheiro do jogo para capturar. Os IDs são criados pelo Daniel no Creator Hub (Monetization → Developer
+-- Products) e colados aqui. Com 0 o botão aparece como "SOON" (no Studio, com STUDIO_FREE_LURES, sai de graça).
+Config.RiftLure = {
+	RESERVE_SECONDS = 15, -- só quem chamou pode capturar neste tempo; depois vira de todo mundo
+	PRODUCTS = {
+		Small = { id = 0, price = 49, rarities = { "Common", "Uncommon" } },
+		Medium = { id = 0, price = 99, rarities = { "Rare" } },
+		Big = { id = 0, price = 199, rarities = { "Epic" } },
+	},
+}
+
 -- Ajudas para testar no Studio. Não têm efeito no jogo publicado.
 Config.Debug = {
 	-- Renda extra por segundo no cofre, só no Studio. Útil para testar compras sem jogar muito.
@@ -327,6 +340,8 @@ Config.Debug = {
 	STUDIO_NIGHT_ANOMALY_CHANCE = 0.6,
 	-- No Studio, finge que o jogador tem todos os gamepasses (para testar os efeitos sem comprar).
 	STUDIO_OWN_ALL_PASSES = false,
+	-- No Studio, a Isca da Fenda sai de graça (para testar sem criar os produtos).
+	STUDIO_FREE_LURES = true,
 	-- No Studio, chance de Lua Vermelha em cada madrugada (0 = usar a normal).
 	STUDIO_RED_MOON_CHANCE = 0.5,
 }
