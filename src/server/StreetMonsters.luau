@@ -47,7 +47,32 @@ type Wanderer = {
 	tag: TextLabel, -- linha de cima do letreiro (raridade, ou "LURED BY ...")
 	reservedFor: Player?, -- Isca da Fenda: só este jogador captura até `reservedUntil`
 	reservedUntil: number,
+	rarityText: string,
+	rarityColor: Color3,
+	-- Combate (Config.Combat): jeito de agir, vida e nocaute.
+	behavior: Behavior,
+	health: number,
+	maxHealth: number, -- 0 = passivo: dá para capturar sem nocautear
+	ko: boolean,
+	koVersion: number, -- muda a cada nocaute, para o "acordar" atrasado não valer depois de outro nocaute
+	lastAttack: number,
+	standY: number, -- altura da raiz em pé
+	prompt: ProximityPrompt,
+	healthBar: Frame?,
 }
+
+type Behavior = {
+	mode: string,
+	speed: number,
+	health: number?,
+	damage: number?,
+	aggro: number?,
+	aura: number?,
+}
+
+local Combat = Config.Combat
+local BEHAVIORS = Combat.BEHAVIORS :: { [string]: Behavior }
+local KO_COLOR = Color3.fromRGB(255, 220, 90)
 
 -- Isca da Fenda (RiftLure.luau): monstro escolhido e pago com Robux, que sai do bueiro mais perto da loja.
 type Lure = {
@@ -64,6 +89,7 @@ local random = Random.new()
 local folder: Folder
 local notify: RemoteEvent
 local paused = false -- durante a Invasão da Fenda não sai monstro novo
+local spawnBoost = 1 -- evento Rift Storm (RandomEvents.luau): monstros saem mais rápido
 
 local function tell(player: Player, text: string, color: Color3)
 	if player.Parent == Players then
@@ -190,11 +216,17 @@ local function deliver(wanderer: Wanderer, player: Player, cost: number)
 	vanish(wanderer)
 end
 
+local standUp: (Wanderer) -> () -- definida mais abaixo, junto do nocaute
+
 local function capture(wanderer: Wanderer, player: Player)
 	if wanderer.claimedBy ~= nil or wanderer.model.Parent == nil then
 		return
 	end
 	if Plots.getStore(player) == nil or Data.get(player) == nil then
+		return
+	end
+	if wanderer.maxHealth > 0 and not wanderer.ko then
+		tell(player, "It's too dangerous! Knock it out with your Shock Baton first.", BAD)
 		return
 	end
 	local reservedFor = wanderer.reservedFor
@@ -220,6 +252,7 @@ local function capture(wanderer: Wanderer, player: Player)
 	end
 
 	wanderer.claimedBy = player
+	standUp(wanderer)
 	pending[player] = (pending[player] or 0) + 1
 	Analytics.spend(player, cost, "Shop", `Monster_{wanderer.kind}_{wanderer.variant}`)
 	local prompt = wanderer.root:FindFirstChild("CapturePrompt")
@@ -236,27 +269,283 @@ local function capture(wanderer: Wanderer, player: Player)
 	task.spawn(deliver, wanderer, player, cost)
 end
 
--- Anda pela faixa até o Ralo. Para no meio se alguém capturar.
-local function walkLane(wanderer: Wanderer)
-	local step = 30
-	local x = wanderer.root.Position.X
-	while x < Layout.DRAIN_X and wanderer.claimedBy == nil and wanderer.model.Parent do
-		x = math.min(x + step, Layout.DRAIN_X)
-		local target = Vector3.new(x, 0, wanderer.lane)
-		wanderer.humanoid:MoveTo(target)
-		local deadline = os.clock() + step / Settings.WALK_SPEED + 3
-		while
-			wanderer.claimedBy == nil
-			and wanderer.model.Parent
-			and os.clock() < deadline
-			and math.abs(wanderer.root.Position.X - x) > 2
-		do
-			task.wait(0.25)
+-- Jogador vivo mais perto de `position` dentro de `range` (só quem está na rua ou na calçada).
+local function nearestPlayer(position: Vector3, range: number): (Player?, Humanoid?, BasePart?, number)
+	local best: Player?, bestHumanoid: Humanoid?, bestRoot: BasePart?, bestDistance = nil, nil, nil, range
+	for _, player in Players:GetPlayers() do
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if root and root:IsA("BasePart") and humanoid and humanoid.Health > 0 then
+			if math.abs(root.Position.Z) <= Combat.LEASH_Z + 8 then
+				local offset = root.Position - position
+				local distance = Vector3.new(offset.X, 0, offset.Z).Magnitude
+				if distance <= bestDistance then
+					best, bestHumanoid, bestRoot, bestDistance = player, humanoid, root, distance
+				end
+			end
 		end
 	end
-	if wanderer.claimedBy == nil then
+	return best, bestHumanoid, bestRoot, bestDistance
+end
+
+-- Mantém o destino dentro da rua (não entra nas lojas nem passa da Fenda/Ralo).
+local function clampToStreet(position: Vector3): Vector3
+	return Vector3.new(
+		math.clamp(position.X, Layout.RIFT_X + 4, Layout.DRAIN_X),
+		0,
+		math.clamp(position.Z, -Combat.LEASH_Z, Combat.LEASH_Z)
+	)
+end
+
+local function reach(wanderer: Wanderer): number
+	local _, size = wanderer.model:GetBoundingBox()
+	return Combat.ATTACK_RANGE + math.max(size.X, size.Z) / 2
+end
+
+-- Ataca um jogador: o cliente anima o bote (atributo "AttackAt") e o servidor tira vida.
+-- TakeDamage respeita o ForceField de quem acabou de nascer.
+local function attack(wanderer: Wanderer, humanoid: Humanoid, damage: number)
+	wanderer.lastAttack = os.clock()
+	wanderer.model:SetAttribute("AttackAt", workspace:GetServerTimeNow())
+	humanoid:TakeDamage(damage)
+end
+
+local function updateHealthBar(wanderer: Wanderer)
+	local bar = wanderer.healthBar
+	if bar then
+		local fraction = math.clamp(wanderer.health / math.max(wanderer.maxHealth, 1), 0, 1)
+		bar.Size = UDim2.fromScale(fraction, 1)
+		bar.BackgroundColor3 = Color3.fromRGB(255, 70, 70):Lerp(Color3.fromRGB(90, 255, 120), fraction)
+	end
+end
+
+local function makeHealthBar(wanderer: Wanderer, height: number)
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "Health"
+	billboard.Size = UDim2.fromOffset(110, 10)
+	billboard.StudsOffsetWorldSpace = Vector3.new(0, height + 0.6, 0)
+	billboard.MaxDistance = 110
+	billboard.Parent = wanderer.root
+	local back = Instance.new("Frame")
+	back.Size = UDim2.fromScale(1, 1)
+	back.BackgroundColor3 = Color3.fromRGB(30, 20, 25)
+	back.BorderSizePixel = 0
+	back.Parent = billboard
+	local bar = Instance.new("Frame")
+	bar.BorderSizePixel = 0
+	bar.Parent = back
+	wanderer.healthBar = bar
+	updateHealthBar(wanderer)
+end
+
+-- Levanta (fim do nocaute ou capturado nocauteado). Volta a ser empurrado pelo Humanoid.
+function standUp(wanderer: Wanderer)
+	if not wanderer.ko then
+		return
+	end
+	wanderer.ko = false
+	wanderer.model:SetAttribute("KO", nil)
+	local stars = wanderer.root:FindFirstChild("KOStars")
+	if stars then
+		stars:Destroy()
+	end
+	local position = wanderer.root.Position
+	wanderer.model:PivotTo(
+		CFrame.lookAt(
+			Vector3.new(position.X, wanderer.standY, position.Z),
+			Vector3.new(position.X + 10, wanderer.standY, position.Z)
+		)
+	)
+	wanderer.root.Anchored = false
+	wanderer.root:SetNetworkOwner(nil)
+end
+
+-- Nocaute: cai de lado, solta estrelinhas e libera a captura por Combat.KO_SECONDS.
+local function knockOut(wanderer: Wanderer, by: Player)
+	wanderer.ko = true
+	wanderer.koVersion += 1
+	local version = wanderer.koVersion
+	local model = wanderer.model
+	model:SetAttribute("KO", true)
+	wanderer.root.Anchored = true
+	model:PivotTo(model:GetPivot() * CFrame.Angles(0, 0, math.rad(80)))
+	local box, size = model:GetBoundingBox()
+	model:PivotTo(model:GetPivot() + Vector3.new(0, 0.1 - (box.Position.Y - size.Y / 2), 0))
+
+	local stars = Instance.new("ParticleEmitter")
+	stars.Name = "KOStars"
+	stars.Color = ColorSequence.new(KO_COLOR)
+	stars.LightEmission = 1
+	stars.Size = NumberSequence.new(0.6, 0)
+	stars.Lifetime = NumberRange.new(0.8, 1.2)
+	stars.Rate = 10
+	stars.Speed = NumberRange.new(2, 4)
+	stars.SpreadAngle = Vector2.new(60, 60)
+	stars.Parent = wanderer.root
+
+	wanderer.prompt.Enabled = true
+	wanderer.tag.Text = "KNOCKED OUT!"
+	wanderer.tag.TextColor3 = KO_COLOR
+	tell(by, `Knocked out! Hold C to capture it before it wakes up ({Combat.KO_SECONDS}s).`, GOOD)
+
+	task.delay(Combat.KO_SECONDS, function()
+		if wanderer.ko and wanderer.koVersion == version and wanderer.claimedBy == nil and model.Parent then
+			standUp(wanderer)
+			wanderer.health = wanderer.maxHealth
+			updateHealthBar(wanderer)
+			wanderer.prompt.Enabled = false
+			wanderer.tag.Text = wanderer.rarityText
+			wanderer.tag.TextColor3 = wanderer.rarityColor
+		end
+	end)
+end
+
+local function damage(wanderer: Wanderer, by: Player, amount: number)
+	if wanderer.maxHealth <= 0 or wanderer.ko or wanderer.claimedBy then
+		return
+	end
+	wanderer.health -= amount
+	wanderer.model:SetAttribute("HitAt", workspace:GetServerTimeNow())
+	updateHealthBar(wanderer)
+	if wanderer.health <= 0 then
+		knockOut(wanderer, by)
+	end
+end
+
+-- "Cérebro" do monstro: decide para onde ir a cada 0,3 s conforme o jeito dele (Config.Combat.BEHAVIORS).
+-- Sem ninguém perto, todos andam em zigue-zague até o Ralo e somem lá.
+local function brain(wanderer: Wanderer)
+	local behavior = wanderer.behavior
+	local humanoid = wanderer.humanoid
+	local goal = wanderer.root.Position
+	local pauseUntil = 0
+	local chaseStarted = 0
+	local lastBlink = os.clock()
+	local lastAura = 0
+	local bornAt = os.clock()
+
+	while wanderer.model.Parent and wanderer.claimedBy == nil do
+		task.wait(0.3)
+		if wanderer.claimedBy or wanderer.model.Parent == nil then
+			break
+		end
+		if wanderer.ko or wanderer.root.Anchored then
+			continue -- nocauteado ou ainda subindo do bueiro
+		end
+		local position = wanderer.root.Position
+		local now = os.clock()
+		if position.X >= Layout.DRAIN_X - 3 or now - bornAt > 360 then
+			break
+		end
+
+		-- Água-viva: dá choque em quem está perto, sem precisar ir atrás.
+		if behavior.aura and now - lastAura >= Combat.AURA_EVERY_SECONDS then
+			lastAura = now
+			for _, player in Players:GetPlayers() do
+				local character = player.Character
+				local root = character and character:FindFirstChild("HumanoidRootPart")
+				local victim = character and character:FindFirstChildOfClass("Humanoid")
+				if root and root:IsA("BasePart") and victim and victim.Health > 0 then
+					if (root.Position - position).Magnitude <= behavior.aura then
+						attack(wanderer, victim, behavior.damage or 5)
+					end
+				end
+			end
+		end
+
+		local moved = false
+		local target, victim, targetRoot, distance = nearestPlayer(position, behavior.aggro or 0)
+		if target == nil then
+			chaseStarted = 0
+		elseif chaseStarted == 0 or now - chaseStarted > Combat.CHASE_GIVE_UP_SECONDS + 4 then
+			chaseStarted = now -- começa (ou recomeça, depois de um descanso) a perseguição
+		end
+		local chasing = target ~= nil and now - chaseStarted < Combat.CHASE_GIVE_UP_SECONDS
+		local mode = behavior.mode
+
+		if chasing and targetRoot and victim and (mode == "Hunt" or mode == "Ambush" or mode == "Blink") then
+			if mode == "Blink" and now - lastBlink >= Combat.BLINK_EVERY_SECONDS then
+				-- Some e aparece atrás do jogador.
+				lastBlink = now
+				local behind = clampToStreet((targetRoot.CFrame * CFrame.new(0, 0, 6)).Position)
+				local look = Vector3.new(targetRoot.Position.X, wanderer.standY, targetRoot.Position.Z)
+				wanderer.model:PivotTo(CFrame.lookAt(Vector3.new(behind.X, wanderer.standY, behind.Z), look))
+				tell(target :: Player, "Something is right behind you...", BAD)
+				wanderer.lastAttack = now - Combat.ATTACK_COOLDOWN + 0.8 -- dá 0,8 s para fugir
+			end
+			humanoid.WalkSpeed = behavior.speed
+			humanoid:MoveTo(clampToStreet(targetRoot.Position))
+			moved = true
+			if distance <= reach(wanderer) and now - wanderer.lastAttack >= Combat.ATTACK_COOLDOWN then
+				attack(wanderer, victim, behavior.damage or 10)
+			end
+		elseif target and targetRoot and mode == "Flee" then
+			local away = position - targetRoot.Position
+			away = Vector3.new(away.X, 0, away.Z)
+			if away.Magnitude < 0.1 then
+				away = Vector3.new(1, 0, 0)
+			end
+			humanoid.WalkSpeed = behavior.speed
+			humanoid:MoveTo(clampToStreet(position + away.Unit * 14))
+			moved = true
+		elseif mode == "Ambush" and target == nil and random:NextNumber() < 0.8 then
+			-- Fingindo ser uma caixa: fica parado quase o tempo todo.
+			humanoid:MoveTo(position)
+			moved = true
+		end
+
+		if not moved then
+			if now < pauseUntil then
+				continue
+			end
+			local flat = Vector3.new(goal.X - position.X, 0, goal.Z - position.Z)
+			if flat.Magnitude < 3 or humanoid.MoveDirection.Magnitude < 0.05 then
+				-- Próximo ponto do zigue-zague, um pouco à frente e de um lado da faixa.
+				local x = math.min(position.X + random:NextNumber(10, 22), Layout.DRAIN_X)
+				local z = random:NextNumber(-Layout.LANE_HALF_WIDTH + 1, Layout.LANE_HALF_WIDTH - 1)
+				goal = Vector3.new(x, 0, z)
+				if mode == "Wander" and random:NextNumber() < 0.25 then
+					pauseUntil = now + random:NextNumber(1, 2.5) -- para e olha em volta
+					humanoid:MoveTo(position)
+					continue
+				end
+			end
+			humanoid.WalkSpeed = if mode == "Wander" then behavior.speed else Settings.WALK_SPEED
+			humanoid:MoveTo(goal)
+		end
+	end
+	if wanderer.claimedBy == nil and wanderer.model.Parent then
 		vanish(wanderer)
 	end
+end
+
+-- Bastão de choque (Weapons.luau): acerta o monstro mais perto à frente de `origin`. Devolve true se acertou.
+function StreetMonsters.hit(player: Player, origin: CFrame, range: number, amount: number): boolean
+	local best: Wanderer?, bestDistance = nil, math.huge
+	for _, wanderer in wanderers do
+		if
+			wanderer.maxHealth > 0
+			and not wanderer.ko
+			and wanderer.claimedBy == nil
+			and wanderer.model.Parent
+		then
+			local _, size = wanderer.model:GetBoundingBox()
+			local offset = wanderer.root.Position - origin.Position
+			local flat = Vector3.new(offset.X, 0, offset.Z)
+			local distance = flat.Magnitude - math.max(size.X, size.Z) / 2
+			local look = Vector3.new(origin.LookVector.X, 0, origin.LookVector.Z)
+			local inFront = flat.Magnitude < 3 or look.Magnitude < 0.01 or flat.Unit:Dot(look.Unit) > 0.2
+			if distance <= range and inFront and distance < bestDistance then
+				best, bestDistance = wanderer, distance
+			end
+		end
+	end
+	if best == nil then
+		return false
+	end
+	damage(best, player, amount)
+	return true
 end
 
 local function luck(): (number, number)
@@ -286,6 +575,8 @@ local function spawnOne(startX: number?, boost: number?, force: boolean?, lure: 
 	local root = model.PrimaryPart :: BasePart
 	local humanoid = model:FindFirstChildOfClass("Humanoid") :: Humanoid
 	humanoid.WalkSpeed = Settings.WALK_SPEED
+	local behavior = BEHAVIORS[definition.id] or { mode = "Wander", speed = Settings.WALK_SPEED }
+	local maxHealth = (behavior.health or 0) * (if variant == "Giant" then Combat.GIANT_HEALTH else 1)
 	local lane = random:NextNumber(-Layout.LANE_HALF_WIDTH + 1.5, Layout.LANE_HALF_WIDTH - 1.5)
 
 	-- Mede a altura antes de mover, para o letreiro ficar logo acima da cabeça.
@@ -321,15 +612,30 @@ local function spawnOne(startX: number?, boost: number?, force: boolean?, lure: 
 		tag = nil :: any,
 		reservedFor = if lure then lure.player else nil,
 		reservedUntil = os.clock() + Config.RiftLure.RESERVE_SECONDS,
+		rarityText = "",
+		rarityColor = Color3.new(1, 1, 1),
+		behavior = behavior,
+		health = maxHealth,
+		maxHealth = maxHealth,
+		ko = false,
+		koVersion = 0,
+		lastAttack = 0,
+		standY = standing.Position.Y,
+		prompt = nil :: any,
+		healthBar = nil,
 	}
 	wanderer.status, wanderer.tag = makeBillboard(wanderer, top)
+	wanderer.rarityText, wanderer.rarityColor = wanderer.tag.Text, wanderer.tag.TextColor3
+	if maxHealth > 0 then
+		makeHealthBar(wanderer, top)
+	end
 	if lure then
 		-- Mostra de quem é a reserva e volta a mostrar a raridade quando ela acaba.
 		local rarityText, rarityColor = wanderer.tag.Text, wanderer.tag.TextColor3
 		wanderer.tag.Text = `LURED BY {string.upper(lure.player.DisplayName)}`
 		wanderer.tag.TextColor3 = Color3.fromRGB(255, 220, 90)
 		task.delay(Config.RiftLure.RESERVE_SECONDS, function()
-			if wanderer.claimedBy == nil and wanderer.model.Parent then
+			if wanderer.claimedBy == nil and wanderer.model.Parent and not wanderer.ko then
 				wanderer.tag.Text = rarityText
 				wanderer.tag.TextColor3 = rarityColor
 			end
@@ -345,10 +651,12 @@ local function spawnOne(startX: number?, boost: number?, force: boolean?, lure: 
 	prompt.HoldDuration = Settings.CAPTURE_HOLD_SECONDS
 	prompt.MaxActivationDistance = 12 + boxSize.X / 2
 	prompt.RequiresLineOfSight = false
+	prompt.Enabled = maxHealth == 0 -- os ofensivos só liberam a captura nocauteados
 	prompt.Parent = root
 	prompt.Triggered:Connect(function(player)
 		capture(wanderer, player)
 	end)
+	wanderer.prompt = prompt
 
 	-- Faísca no portal da Fenda.
 	local street = workspace:FindFirstChild("Street")
@@ -403,17 +711,23 @@ local function spawnOne(startX: number?, boost: number?, force: boolean?, lure: 
 			root.Anchored = false
 		end
 		root:SetNetworkOwner(nil) -- o servidor controla, sem engasgos
-		walkLane(wanderer)
+		brain(wanderer)
 	end)
 end
 
 local function spawnInterval(): number
+	local seconds = Settings.SPAWN_SECONDS_DAY
 	if DayNight.isRedMoon() then
-		return Settings.SPAWN_SECONDS_RED_MOON
+		seconds = Settings.SPAWN_SECONDS_RED_MOON
 	elseif DayNight.isNight() then
-		return Settings.SPAWN_SECONDS_NIGHT
+		seconds = Settings.SPAWN_SECONDS_NIGHT
 	end
-	return Settings.SPAWN_SECONDS_DAY
+	return seconds / spawnBoost
+end
+
+-- Multiplica a velocidade com que os monstros saem (1 = normal).
+function StreetMonsters.setSpawnBoost(value: number)
+	spawnBoost = math.max(value, 0.1)
 end
 
 -- Isca da Fenda: chama o monstro `kind` (variante normal) pelo bueiro mais perto da loja do jogador. Só ele

@@ -329,6 +329,56 @@ Config.RiftLure = {
 	},
 }
 
+-- Combate (server/Weapons.luau e o "cérebro" dos monstros em server/StreetMonsters.luau, docs/V3.md seção 9).
+-- Cada monstro da rua tem um jeito de agir. Os que têm `health` são ofensivos: atacam quem chega perto e só
+-- podem ser capturados depois de nocauteados com o bastão.
+--   Wander  anda em zigue-zague até o Ralo, parando de vez em quando
+--   Flee    foge de quem chega perto (precisa encurralar)
+--   Ambush  finge ser uma caixa parada e pula em quem chega perto
+--   Hunt    persegue o jogador mais perto dentro de `aggro`
+--   Blink   some e aparece atrás de um jogador
+Config.Combat = {
+	BEHAVIORS = {
+		Gloop = { mode = "Wander", speed = 5 },
+		MimicCrate = { mode = "Ambush", speed = 12, health = 6, damage = 10, aggro = 11 },
+		SkullHound = { mode = "Hunt", speed = 13, health = 8, damage = 10, aggro = 30 },
+		EyeSpider = { mode = "Flee", speed = 13, aggro = 16 },
+		TVHead = { mode = "Hunt", speed = 8, health = 14, damage = 15, aggro = 24 },
+		StaticJelly = { mode = "Wander", speed = 4, health = 10, damage = 8, aura = 8 },
+		MothMonarch = { mode = "Hunt", speed = 15, health = 20, damage = 18, aggro = 36 },
+		TheTallOne = { mode = "Blink", speed = 6, health = 35, damage = 25, aggro = 40 },
+		RiftKing = { mode = "Hunt", speed = 9, health = 60, damage = 30, aggro = 30 },
+	},
+	ATTACK_RANGE = 5, -- além do tamanho do monstro
+	ATTACK_COOLDOWN = 1.6,
+	AURA_EVERY_SECONDS = 2,
+	CHASE_GIVE_UP_SECONDS = 10, -- persegue por no máximo isto e volta para a faixa
+	LEASH_Z = 26, -- não sai mais que isto do meio da rua (até a calçada; não invade as lojas)
+	BLINK_EVERY_SECONDS = 7,
+	KO_SECONDS = 12, -- tempo nocauteado; depois levanta com a vida cheia
+	GIANT_HEALTH = 2, -- variante Giant tem vida vezes isto
+	-- Bastão de choque: todo jogador começa com um.
+	BATON_DAMAGE = 2,
+	BATON_DAMAGE_PER_LEVEL = 1, -- upgrade "Shock Baton" do terminal
+	BATON_RANGE = 10,
+	BATON_COOLDOWN = 0.45,
+	BATON_BOSS_MULTIPLIER = 2, -- no Colosso da Fenda o bastão tira o dobro
+}
+
+-- Eventos aleatórios do servidor (server/RandomEvents.luau, docs/V3.md seção 10).
+Config.Events = {
+	EVERY_SECONDS = { 150, 270 }, -- intervalo sorteado entre dois eventos
+	STUDIO_EVERY_SECONDS = { 40, 60 },
+	DURATION_SECONDS = 60,
+	CASH_RAIN_COINS = 40,
+	CASH_RAIN_SECONDS_OF_INCOME = 4, -- cada moeda vale isto da renda de quem pega (mínimo COIN_MIN)
+	COIN_MIN = 25,
+	GOLDEN_HOUR_PRICE = 2, -- preço dos itens vezes isto
+	RIFT_STORM_SPAWN = 3, -- monstros saem 3x mais rápido
+	STAMPEDE_COUNT = 8,
+	SUPPLY_DROP_SECONDS_OF_INCOME = 60,
+}
+
 -- Ajudas para testar no Studio. Não têm efeito no jogo publicado.
 Config.Debug = {
 	-- Renda extra por segundo no cofre, só no Studio. Útil para testar compras sem jogar muito.
