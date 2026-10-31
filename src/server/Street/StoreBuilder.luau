@@ -7,6 +7,7 @@
 --     Sign              letreiro com o nome do dono
 --     Counter           caixa onde o cliente paga
 --     Shelves/Shelf1..  prateleiras
+--     UpgradeTerminal   onde o dono compra upgrades
 --     Safe              cofre onde o dinheiro acumula
 --     BackDoor          vão da porta dos fundos (a porta de aço entra aqui no PR 7)
 --     Cells/Cell1..     celas de contenção na sala dos fundos
@@ -183,15 +184,19 @@ local function buildFixtures(origin: CFrame, store: Model, owner: Player)
 	shelves.Name = "Shelves"
 	shelves.Parent = store
 	for index = 1, Street.START_SHELVES do
-		Parts.make({
-			name = `Shelf{index}`,
-			size = Vector3.new(2, 6, 10),
-			cframe = origin * CFrame.new(4 + (index - 1) * 6, 3, Layout.STORE_FRONT_Z + 11),
-			color = SHELF,
-			material = Enum.Material.Metal,
-			parent = shelves,
-		})
+		StoreBuilder.addShelf(origin, store, index)
 	end
+
+	-- Terminal de upgrades, logo à esquerda de quem entra.
+	local terminal = Parts.make({
+		name = "UpgradeTerminal",
+		size = Vector3.new(2, 4, 1),
+		cframe = origin * CFrame.new(-3, 2, Layout.STORE_FRONT_Z + 1.5),
+		color = TRIM,
+		material = Enum.Material.Neon,
+		parent = store,
+	})
+	terminal.Transparency = 0.2
 
 	Parts.make({
 		name = "Safe",
@@ -231,7 +236,23 @@ local function buildFixtures(origin: CFrame, store: Model, owner: Player)
 	spawnPoint.CanQuery = false
 end
 
--- Cria a cela número `index`. Exposto porque o upgrade de celas (PR 8) vai chamar isto.
+-- Cria a prateleira número `index`. Exposto porque o upgrade de prateleiras chama isto.
+function StoreBuilder.addShelf(origin: CFrame, store: Model, index: number): Part
+	local shelves = store:FindFirstChild("Shelves")
+	assert(shelves, "loja sem pasta Shelves")
+
+	local size = Street.SHELF_SIZE
+	return Parts.make({
+		name = `Shelf{index}`,
+		size = size,
+		cframe = origin * CFrame.new(Layout.shelfOffset(index) + Vector3.new(0, size.Y / 2, 0)),
+		color = SHELF,
+		material = Enum.Material.Metal,
+		parent = shelves,
+	})
+end
+
+-- Cria a cela número `index`. Exposto porque o upgrade de celas chama isto.
 function StoreBuilder.addCell(origin: CFrame, store: Model, index: number): Part
 	local cells = store:FindFirstChild("Cells")
 	assert(cells, "loja sem pasta Cells")

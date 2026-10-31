@@ -8,6 +8,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Passes = require(script.Parent.Passes)
 local Plots = require(script.Parent.Plots)
 
 local Customers = Config.Customers
@@ -105,12 +106,28 @@ local function setupStore(player: Player)
 	end
 end
 
--- Precisa rodar depois de Plots.start().
+-- Gamepass Restock Robot: repõe todas as prateleiras do dono de tempos em tempos.
+local function restockRobotLoop()
+	while true do
+		task.wait(Config.RESTOCK_ROBOT_INTERVAL)
+		for _, player in Players:GetPlayers() do
+			local store = Plots.getStore(player)
+			if store and Passes.has(player, "RestockRobot") then
+				for _, shelf in Shelves.list(store) do
+					Shelves.refill(shelf)
+				end
+			end
+		end
+	end
+end
+
+-- Precisa rodar depois de Plots.start() e Passes.start().
 function Shelves.start()
 	Players.PlayerAdded:Connect(setupStore)
 	for _, player in Players:GetPlayers() do
 		task.spawn(setupStore, player)
 	end
+	task.spawn(restockRobotLoop)
 end
 
 return Shelves

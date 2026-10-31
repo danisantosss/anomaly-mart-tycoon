@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Anomalies = require(ReplicatedStorage.Shared.Anomalies)
 local Config = require(ReplicatedStorage.Shared.Config)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local AnomalyLooks = require(script.Parent.AnomalyLooks)
 local CustomerModel = require(script.Parent.CustomerModel)
 local Data = require(script.Parent.Data)
@@ -201,6 +202,27 @@ function Cells.hasFreeCell(player: Player): boolean
 	return Data.get(player) ~= nil and Cells.count(player) < Cells.capacity(player)
 end
 
+-- Ganho offline: uma parte do $/s das celas pelo tempo fora, com limite (docs/V1.md, seção 3).
+local function payOffline(player: Player, data: Data.PlayerData)
+	local settings = Config.Offline
+	local away = if data.LastLogout > 0 then os.time() - data.LastLogout else 0
+	-- Marca "agora" já, para um servidor que cair não pagar o mesmo período duas vezes.
+	data.LastLogout = os.time()
+	if away < settings.MIN_SECONDS then
+		return
+	end
+
+	local seconds = math.min(away, settings.MAX_HOURS * 3600)
+	local earned = Economy.addToSafe(player, Cells.totalIncome(player) * settings.FRACTION * seconds)
+	if earned >= 1 then
+		Remotes.get("Notify"):FireClient(
+			player,
+			`While you were away, your anomalies made {NumberFormat.cash(earned)}! Collect it at your safe.`,
+			Color3.fromRGB(120, 255, 140)
+		)
+	end
+end
+
 local function onPlayerAdded(player: Player)
 	local leaderstats = player:WaitForChild("leaderstats", 10)
 	if leaderstats and leaderstats:FindFirstChild("Anomalies") == nil then
@@ -209,8 +231,10 @@ local function onPlayerAdded(player: Player)
 		stat.Parent = leaderstats
 	end
 
-	if Data.waitFor(player) then
+	local data = Data.waitFor(player)
+	if data then
 		Cells.render(player)
+		payOffline(player, data)
 	end
 end
 

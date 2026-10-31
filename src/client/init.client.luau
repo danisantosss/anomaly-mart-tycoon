@@ -8,8 +8,10 @@ local Players = game:GetService("Players")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Hud = require(script.Hud)
 local PromptFilter = require(script.PromptFilter)
+local UpgradesUi = require(script.UpgradesUi)
 
 PromptFilter.start()
 Hud.start()
+UpgradesUi.start()
 
 print(`[Anomaly Mart] cliente iniciado para {Players.LocalPlayer.Name} (v{Config.VERSION})`)

@@ -24,6 +24,8 @@ Config.Street = {
 	BACK_DOOR_WIDTH = 4,
 
 	START_SHELVES = 2,
+	MAX_SHELVES = 7, -- 2 iniciais + 5 níveis de upgrade
+	SHELF_SIZE = Vector3.new(2, 6, 6),
 	START_CELLS = 3,
 	MAX_CELLS = 12, -- 6 encostadas na parede do fundo + 6 ao lado da divisória
 	CELL_SIZE = Vector3.new(3, 7, 3),
@@ -79,6 +81,29 @@ Config.Door = {
 	COOLDOWN_SECONDS = 120, -- contado a partir do momento em que trancou
 }
 
+-- Efeito de cada nível de upgrade (a lista e os preços ficam em Shared/Upgrades.luau).
+Config.UpgradeEffects = {
+	SNEAKERS_SPEED_PER_LEVEL = 2,
+	FLASHLIGHT_HOLD_PER_LEVEL = 0.4, -- segundos a menos para capturar
+	FLASHLIGHT_MIN_HOLD = 0.8,
+	SIGN_CUSTOMERS_PER_LEVEL = 0.10,
+}
+
+-- Gamepasses (docs/V1.md, seção 8). Os IDs são criados pelo Daniel no Creator Hub (Monetization → Passes)
+-- e colados aqui. Com 0, o botão de compra aparece como "Soon".
+Config.GamePasses = {
+	DoubleCash = { id = 0, displayName = "2x Cash", price = 199 },
+	RestockRobot = { id = 0, displayName = "Restock Robot", price = 149 },
+}
+Config.RESTOCK_ROBOT_INTERVAL = 5 -- segundos entre as reposições automáticas
+
+-- Ganho offline (docs/V1.md, seção 3).
+Config.Offline = {
+	FRACTION = 0.10, -- parte do $/s das celas que continua rendendo com o jogador fora
+	MAX_HOURS = 8,
+	MIN_SECONDS = 60, -- abaixo disso não mostra nada
+}
+
 -- Ajudas para testar no Studio. Não têm efeito no jogo publicado.
 Config.Debug = {
 	-- Renda extra por segundo no cofre, só no Studio. Útil para testar compras sem jogar muito.
@@ -88,6 +113,8 @@ Config.Debug = {
 	STUDIO_NIGHT_SECONDS = 60,
 	-- No Studio, a chance de anomalia de madrugada vira este valor (0 = usar a normal).
 	STUDIO_NIGHT_ANOMALY_CHANCE = 0.6,
+	-- No Studio, finge que o jogador tem todos os gamepasses (para testar os efeitos sem comprar).
+	STUDIO_OWN_ALL_PASSES = false,
 }
 
 return Config

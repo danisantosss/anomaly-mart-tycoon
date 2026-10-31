@@ -28,6 +28,7 @@ local Economy = require(script.Parent.Economy)
 local Layout = require(script.Parent.Street.Layout)
 local Plots = require(script.Parent.Plots)
 local Shelves = require(script.Parent.Shelves)
+local StoreUpgrades = require(script.Parent.StoreUpgrades)
 
 local Settings = Config.Customers
 local AnomalySettings = Config.Anomalies
@@ -99,10 +100,10 @@ local function doorInside(state: StoreState): Vector3
 	return point(state, 0, Layout.STORE_FRONT_Z + 3)
 end
 
--- Onde o cliente fica para pegar itens: do lado da prateleira, no meio dela.
+-- Onde o cliente fica para pegar itens: do lado -X da prateleira, no meio dela (ver Layout.shelfOffset).
 local function shelfSpot(state: StoreState, shelf: BasePart): Vector3
 	local localPos = state.origin:PointToObjectSpace(shelf.Position)
-	return point(state, localPos.X + shelf.Size.X / 2 + 1.5, localPos.Z)
+	return point(state, localPos.X - shelf.Size.X / 2 - 1.5, localPos.Z)
 end
 
 -- Lugar `slot` da fila (0 = na frente do caixa). A fila cresce em direção à porta.
@@ -211,10 +212,10 @@ local function flickerLights(state: StoreState)
 	end)
 end
 
-local function charge(state: StoreState)
+local function chargeOne(state: StoreState): boolean
 	local customer = state.queue[1]
 	if customer == nil then
-		return
+		return false
 	end
 
 	if isAnomaly(customer) then
@@ -228,12 +229,21 @@ local function charge(state: StoreState)
 		)
 	else
 		local multiplier = if DayNight.isNight() then Settings.NIGHT_PRICE_MULTIPLIER else 1
-		local amount = customer.items * Settings.ITEM_PRICE * multiplier
-		Economy.addToSafe(state.owner, amount)
+		local amount = Economy.addToSafe(state.owner, customer.items * Settings.ITEM_PRICE * multiplier)
 		floatingText(state.counter, "+" .. NumberFormat.cash(amount), GOOD)
 	end
 
 	task.spawn(leave, state, customer)
+	return not isAnomaly(customer)
+end
+
+-- Cobra o primeiro da fila e, com o upgrade Fast Register, mais alguns. Para ao topar com uma anomalia.
+local function charge(state: StoreState)
+	for _ = 1, StoreUpgrades.chargeBatch(state.owner) do
+		if not chargeOne(state) then
+			return
+		end
+	end
 end
 
 local function refuse(state: StoreState)
@@ -293,7 +303,7 @@ local function addCapturePrompt(state: StoreState, customer: Customer)
 	prompt.ActionText = "Capture"
 	prompt.ObjectText = "Customer"
 	prompt.KeyboardKeyCode = Enum.KeyCode.C
-	prompt.HoldDuration = AnomalySettings.CAPTURE_HOLD_SECONDS
+	prompt.HoldDuration = StoreUpgrades.captureHoldSeconds(state.owner)
 	prompt.MaxActivationDistance = AnomalySettings.CAPTURE_DISTANCE
 	prompt.RequiresLineOfSight = false
 	prompt:SetAttribute("OwnerUserId", state.owner.UserId)
@@ -524,6 +534,7 @@ local function spawnLoop()
 				if now < state.penaltyUntil then
 					interval *= 2
 				end
+				interval /= StoreUpgrades.customerRate(owner)
 				state.nextSpawnAt = now + interval
 				task.spawn(spawnCustomer, state)
 			end
