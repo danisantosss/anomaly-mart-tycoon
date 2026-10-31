@@ -4,6 +4,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Analytics = require(script.Analytics)
 local Builds = require(script.Builds)
 local Cells = require(script.Cells)
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -36,5 +37,6 @@ Franchise.start()
 Rewards.start()
 Social.start()
 Leaderboards.start()
+Analytics.start()
 
 print(`[Anomaly Mart] servidor iniciado (v{Config.VERSION})`)

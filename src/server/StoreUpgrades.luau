@@ -9,6 +9,7 @@ local Builds = require(ReplicatedStorage.Shared.Builds)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Upgrades = require(ReplicatedStorage.Shared.Upgrades)
+local Analytics = require(script.Parent.Analytics)
 local Data = require(script.Parent.Data)
 local Economy = require(script.Parent.Economy)
 local Plots = require(script.Parent.Plots)
@@ -114,12 +115,15 @@ function StoreUpgrades.buy(player: Player, id: string)
 		notify:FireClient(player, `{definition.displayName} is already maxed!`, Color3.fromRGB(255, 230, 140))
 		return
 	end
-	if not Economy.trySpend(player, Upgrades.cost(id, current)) then
+	local cost = Upgrades.cost(id, current)
+	if not Economy.trySpend(player, cost) then
 		notify:FireClient(player, "Not enough cash! Collect your safe.", Color3.fromRGB(255, 100, 100))
 		return
 	end
 
 	data.Upgrades[id] = current + 1
+	Analytics.step(player, "FirstUpgrade")
+	Analytics.spend(player, cost, "Shop", `Upgrade_{id}_{current + 1}`)
 	applyAll(player)
 	notify:FireClient(
 		player,

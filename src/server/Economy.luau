@@ -11,6 +11,7 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Analytics = require(script.Parent.Analytics)
 local Data = require(script.Parent.Data)
 local Passes = require(script.Parent.Passes)
 local Plots = require(script.Parent.Plots)
@@ -185,6 +186,8 @@ function Economy.collectSafe(player: Player)
 	data.Cash += amount
 	refresh(player)
 	cashCollected:FireClient(player, amount)
+	Analytics.step(player, "FirstCollect")
+	Analytics.earn(player, amount, "Gameplay", "Safe")
 end
 
 local function connectSafe(player: Player)
