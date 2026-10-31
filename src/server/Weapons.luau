@@ -144,9 +144,10 @@ local function swing(player: Player, tool: Tool)
 	local thief = zapThief(player, origin)
 	if thief then
 		spark(thief)
-	elseif StreetMonsters.hit(player, origin, Combat.BATON_RANGE, amount) then
-		spark(front)
-	elseif RiftInvasion.hit(player, amount * Combat.BATON_BOSS_MULTIPLIER) then
+	elseif
+		StreetMonsters.hit(player, origin, Combat.BATON_RANGE, amount)
+		or RiftInvasion.hit(player, amount * Combat.BATON_BOSS_MULTIPLIER)
+	then
 		spark(front)
 	end
 end
