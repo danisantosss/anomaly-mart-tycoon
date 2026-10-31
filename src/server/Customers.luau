@@ -11,6 +11,7 @@
 -- Os bonecos vêm do CustomerModel (R15 com cores sorteadas) e as anomalias são "quebradas" pelo AnomalyLooks.
 
 local Debris = game:GetService("Debris")
+local PathfindingService = game:GetService("PathfindingService")
 local PhysicsService = game:GetService("PhysicsService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -109,10 +110,35 @@ local function doorInside(state: StoreState): Vector3
 	return point(state, 0, Layout.STORE_FRONT_Z + 3)
 end
 
--- Onde o cliente fica para pegar itens: do lado -X da prateleira, no meio dela (ver Layout.shelfOffset).
+-- Tem alguma prateleira (ou outro móvel da loja) ocupando este ponto do chão?
+local function isBlocked(state: StoreState, position: Vector3): boolean
+	local params = OverlapParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { state.store }
+	for _, part in workspace:GetPartBoundsInRadius(position, 1.2, params) do
+		if part.CanCollide and part.Size.Y > 1 and not part:IsDescendantOf(state.folder) then
+			return true
+		end
+	end
+	return false
+end
+
+-- Onde o cliente fica para pegar itens: na frente da prateleira (lado -X), ou do outro lado se esse estiver
+-- encostado em outro móvel. Assim ninguém fica preso numa quina.
 local function shelfSpot(state: StoreState, shelf: BasePart): Vector3
 	local localPos = state.origin:PointToObjectSpace(shelf.Position)
-	return point(state, localPos.X - shelf.Size.X / 2 - 1.5, localPos.Z)
+	local gap = shelf.Size.X / 2 + 1.5
+	local candidates = {
+		point(state, localPos.X - gap, localPos.Z),
+		point(state, localPos.X + gap, localPos.Z),
+		point(state, localPos.X, localPos.Z - shelf.Size.Z / 2 - 1.5),
+	}
+	for _, candidate in candidates do
+		if not isBlocked(state, candidate) then
+			return candidate
+		end
+	end
+	return candidates[1]
 end
 
 -- Lugar `slot` da fila (0 = na frente do caixa). A fila cresce em direção à porta.
@@ -121,12 +147,8 @@ local function queueSpot(state: StoreState, slot: number): Vector3
 	return point(state, localPos.X + slot * 2.5, localPos.Z - state.counter.Size.Z / 2 - 1.5)
 end
 
--- Anda até `position`. Devolve false se o cliente sumiu no caminho (loja fechou, foi capturado).
-local function walk(customer: Customer, position: Vector3): boolean
-	if customer.model.Parent == nil then
-		return false
-	end
-
+-- Anda em linha reta até `position`, desistindo depois de `timeout` segundos.
+local function moveStraight(customer: Customer, position: Vector3, timeout: number)
 	local arrived = false
 	local connection = customer.humanoid.MoveToFinished:Once(function()
 		arrived = true
@@ -134,10 +156,40 @@ local function walk(customer: Customer, position: Vector3): boolean
 	customer.humanoid:MoveTo(position)
 
 	local started = os.clock()
-	while not arrived and customer.model.Parent ~= nil and os.clock() - started < WALK_TIMEOUT do
+	while not arrived and customer.model.Parent ~= nil and os.clock() - started < timeout do
 		task.wait(0.1)
 	end
 	connection:Disconnect()
+end
+
+local pathParams = {
+	AgentRadius = 1.5,
+	AgentHeight = 5,
+	AgentCanJump = false,
+	WaypointSpacing = 4,
+}
+
+-- Anda até `position` desviando de prateleiras e paredes (PathfindingService). Se não achar caminho, tenta
+-- em linha reta. Devolve false se o cliente sumiu no caminho (loja fechou, foi capturado).
+local function walk(customer: Customer, position: Vector3): boolean
+	local root = customer.model.PrimaryPart
+	if customer.model.Parent == nil or root == nil then
+		return false
+	end
+
+	local path = PathfindingService:CreatePath(pathParams)
+	local ok = pcall(path.ComputeAsync, path, root.Position, position)
+	if ok and path.Status == Enum.PathStatus.Success then
+		local waypoints = path:GetWaypoints()
+		for index = 2, #waypoints do
+			if customer.model.Parent == nil then
+				return false
+			end
+			moveStraight(customer, waypoints[index].Position, 3)
+		end
+	else
+		moveStraight(customer, position, WALK_TIMEOUT)
+	end
 	return customer.model.Parent ~= nil
 end
 
@@ -492,6 +544,7 @@ local function spawnCustomer(state: StoreState)
 	end
 	model:PivotTo(CFrame.new(sidewalkPoint(state)))
 	model.Parent = state.folder
+	CustomerModel.animate(model)
 
 	local root = model.PrimaryPart
 	if root then

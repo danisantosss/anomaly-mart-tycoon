@@ -12,9 +12,24 @@ local function find(model: Model, name: string): BasePart?
 	return if part and part:IsA("BasePart") then part else nil
 end
 
-local function motor(part: BasePart?, name: string): Motor6D?
-	local joint = part and part:FindFirstChild(name)
-	return if joint and joint:IsA("Motor6D") then joint else nil
+-- Mexe numa junta do boneco: `offset` é aplicado do lado da peça "de cima" (ex.: o tronco, no pescoço).
+-- Funciona nos dois tipos de boneco R15: o antigo (juntas Motor6D) e o novo que o Roblox cria hoje
+-- (juntas AnimationConstraint presas em Attachments).
+local function shiftJoint(model: Model, name: string, offset: CFrame): boolean
+	for _, joint in model:GetDescendants() do
+		if joint.Name ~= name then
+			continue
+		end
+		if joint:IsA("Motor6D") then
+			joint.C0 = joint.C0 * offset
+			return true
+		elseif joint:IsA("AnimationConstraint") and joint.Attachment0 then
+			local attachment = joint.Attachment0
+			attachment.CFrame = attachment.CFrame * offset
+			return true
+		end
+	end
+	return false
 end
 
 local function weldTo(base: BasePart, part: BasePart, offset: CFrame)
@@ -28,11 +43,20 @@ local function weldTo(base: BasePart, part: BasePart, offset: CFrame)
 	part.Parent = base
 end
 
+-- Apaga o rosto. No boneco antigo o rosto é um Decal; no novo, a cabeça é uma MeshPart com o rosto na
+-- textura (SurfaceAppearance/TextureID) e FaceControls. Sem textura, fica só a cor da pele.
 local function removeFace(model: Model)
 	local head = find(model, "Head")
-	local face = head and head:FindFirstChildOfClass("Decal")
-	if face then
-		face:Destroy()
+	if head == nil then
+		return
+	end
+	for _, child in head:GetChildren() do
+		if child:IsA("Decal") or child:IsA("SurfaceAppearance") or child:IsA("FaceControls") then
+			child:Destroy()
+		end
+	end
+	if head:IsA("MeshPart") then
+		head.TextureID = ""
 	end
 end
 
@@ -50,12 +74,10 @@ local SHAPES: { [string]: (Model) -> () } = {
 	LongNeck = function(model)
 		local head = find(model, "Head")
 		local torso = find(model, "UpperTorso")
-		local neck = motor(head, "Neck")
-		if head == nil or torso == nil or neck == nil then
+		local stretch = 1.8
+		if head == nil or torso == nil or not shiftJoint(model, "Neck", CFrame.new(0, stretch, 0)) then
 			return
 		end
-		local stretch = 1.8
-		neck.C0 = neck.C0 * CFrame.new(0, stretch, 0)
 		local segment = Instance.new("Part")
 		segment.Name = "LongNeckSegment"
 		segment.Size = Vector3.new(0.5, stretch + 0.4, 0.5)
@@ -65,10 +87,7 @@ local SHAPES: { [string]: (Model) -> () } = {
 
 	-- O corpo fica virado para trás enquanto anda para frente: parece que anda de costas.
 	Backwards = function(model)
-		local root = motor(find(model, "LowerTorso"), "Root")
-		if root then
-			root.C0 = root.C0 * CFrame.Angles(0, math.pi, 0)
-		end
+		shiftJoint(model, "Root", CFrame.Angles(0, math.pi, 0))
 	end,
 
 	NoFace = function(model)
