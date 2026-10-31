@@ -7,6 +7,7 @@ local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Builds = require(ReplicatedStorage.Shared.Builds)
 local Config = require(ReplicatedStorage.Shared.Config)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -132,7 +133,12 @@ function UpgradesUi.start()
 			local raw = player:GetAttribute(attribute)
 			local level = if typeof(raw) == "number" then raw else 0
 			title.Text = `{definition.displayName}  ({level}/{definition.maxLevel})`
-			if level >= definition.maxLevel then
+			local needed = definition.requiresBuild
+			if needed and player:GetAttribute(`Build_{needed}`) ~= true then
+				local piece = Builds.get(needed)
+				buy.Text = `Needs {if piece then piece.displayName else needed}`
+				buy.BackgroundColor3 = DISABLED
+			elseif level >= definition.maxLevel then
 				buy.Text = "MAX"
 				buy.BackgroundColor3 = DISABLED
 			else
@@ -142,6 +148,9 @@ function UpgradesUi.start()
 			end
 		end
 		player:GetAttributeChangedSignal(attribute):Connect(refresh)
+		if definition.requiresBuild then
+			player:GetAttributeChangedSignal(`Build_{definition.requiresBuild}`):Connect(refresh)
+		end
 		table.insert(refreshers, refresh)
 		refresh()
 

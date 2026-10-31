@@ -5,7 +5,7 @@
 
 local Config = {}
 
-Config.VERSION = "0.0.1"
+Config.VERSION = "0.2.0"
 
 -- Rua e lojas (docs/V1.md, seção 1). Medidas em studs.
 Config.Street = {
@@ -15,18 +15,18 @@ Config.Street = {
 	ROAD_WIDTH = 40,
 	SIDEWALK_DEPTH = 8, -- calçada entre a rua e a frente da loja
 
-	STORE_WIDTH = 32,
-	STORE_DEPTH = 32,
+	-- Tamanho da loja completa. O jogador começa só com uma barraquinha e vai comprando as partes
+	-- (shared/Builds.luau).
+	STORE_WIDTH = 48,
+	STORE_DEPTH = 48,
 	STORE_HEIGHT = 14,
 	WALL_THICKNESS = 1,
 	FRONT_DOOR_WIDTH = 8,
-	BACKROOM_DEPTH = 12, -- sala dos fundos, onde ficam as celas
-	BACK_DOOR_WIDTH = 4,
+	BACKROOM_DEPTH = 14, -- sala dos fundos, onde ficam as celas
+	BACK_DOOR_WIDTH = 5,
 
-	START_SHELVES = 2,
-	MAX_SHELVES = 7, -- 2 iniciais + 5 níveis de upgrade
-	SHELF_SIZE = Vector3.new(2, 6, 6),
-	START_CELLS = 3,
+	SHELF_SIZE = Vector3.new(3, 6, 8),
+	FRIDGE_SIZE = Vector3.new(5, 7, 2.5),
 	MAX_CELLS = 12, -- 6 encostadas na parede do fundo + 6 ao lado da divisória
 	CELL_SIZE = Vector3.new(3, 7, 3),
 }
@@ -55,7 +55,7 @@ Config.Customers = {
 	MAX_ITEMS = 3,
 	WALK_SPEED = 10,
 	CHECKOUT_PATIENCE = 30, -- segundos esperando no caixa antes de desistir e ir embora
-	SHELF_CAPACITY = 10,
+	SHELF_CAPACITY = 10, -- prateleira comum; geladeiras e balcão de comida têm a deles (shared/Builds.luau)
 	RESTOCK_HOLD_SECONDS = 1,
 }
 
@@ -82,6 +82,7 @@ Config.Tutorial = {
 Config.Steal = {
 	HOLD_SECONDS = 2, -- segurar E na cela do outro
 	CARRY_SPEED = 10, -- velocidade de quem carrega uma anomalia roubada
+	CARRY_SPEED_CAMERAS = 7, -- ...roubando de uma loja com câmeras de segurança
 	NORMAL_SPEED = 16,
 	CATCH_DISTANCE = 5, -- o dono encostou no ladrão: a anomalia volta
 }
@@ -96,7 +97,16 @@ Config.UpgradeEffects = {
 	SNEAKERS_SPEED_PER_LEVEL = 2,
 	FLASHLIGHT_HOLD_PER_LEVEL = 0.4, -- segundos a menos para capturar
 	FLASHLIGHT_MIN_HOLD = 0.8,
-	SIGN_CUSTOMERS_PER_LEVEL = 0.10,
+	ADVERTISING_CUSTOMERS_PER_LEVEL = 0.10,
+	PREMIUM_PRICE_PER_LEVEL = 0.15, -- +15% no preço de cada item
+	BIG_SHELVES_CAPACITY_PER_LEVEL = 4,
+	DOOR_LOCK_SECONDS_PER_LEVEL = 20,
+}
+
+-- Botões de compra no chão (shared/Builds.luau).
+Config.Pads = {
+	TOUCH_COOLDOWN = 0.6, -- segundos entre duas tentativas de compra do mesmo jogador
+	BUILD_ANIMATION_SECONDS = 0.45,
 }
 
 -- Gamepasses (docs/V1.md, seção 8). Os IDs são criados pelo Daniel no Creator Hub (Monetization → Passes)

@@ -38,23 +38,28 @@ Layout.STORE_FRONT_Z = -Street.PLOT_SIZE / 2 + Street.SIDEWALK_DEPTH
 Layout.STORE_BACK_Z = Layout.STORE_FRONT_Z + Street.STORE_DEPTH
 Layout.PARTITION_Z = Layout.STORE_BACK_Z - Street.BACKROOM_DEPTH
 
--- Centro (no chão) da prateleira número `index`, no espaço local do terreno. Duas fileiras (Z) e até três
--- colunas (X) à esquerda de quem entra, mais uma vaga perto do caixa. O cliente pega os itens pelo lado -X.
-local SHELF_SLOTS = {
-	Vector2.new(3, 7),
-	Vector2.new(8, 7),
-	Vector2.new(3, 15),
-	Vector2.new(8, 15),
-	Vector2.new(13, 7),
-	Vector2.new(13, 15),
-	Vector2.new(-3, 15),
+-- Onde fica cada móvel que vende (centro, no chão, no espaço local do terreno). A loja vai de X = -24 a 24 e
+-- de Z = -32 (frente) a 2 (divisória da sala dos fundos). Corredores de 4 studs entre as prateleiras, para
+-- os clientes passarem. O cliente pega os itens pelo lado -X das prateleiras e pela frente das geladeiras.
+local SLOTS: { [string]: Vector2 } = {
+	Shelf1 = Vector2.new(6, -22),
+	Shelf2 = Vector2.new(13, -22),
+	Shelf3 = Vector2.new(20, -22),
+	Shelf4 = Vector2.new(6, -10),
+	Shelf5 = Vector2.new(13, -10),
+	Shelf6 = Vector2.new(20, -10),
+	Shelf7 = Vector2.new(-14, -12),
+	Shelf8 = Vector2.new(-6, -12),
+	Fridge1 = Vector2.new(6, 0.75),
+	Fridge2 = Vector2.new(13, 0.75),
+	Fridge3 = Vector2.new(20, 0.75),
+	HotFood = Vector2.new(-14, 0.75),
 }
 
-function Layout.shelfOffset(index: number): Vector3
-	local slot = SHELF_SLOTS[index]
-	assert(slot, `prateleira inválida: {index}`)
-	-- slot.Y é a distância a partir da frente da loja.
-	return Vector3.new(slot.X, 0, Layout.STORE_FRONT_Z + slot.Y)
+function Layout.slot(name: string): Vector3
+	local slot = SLOTS[name]
+	assert(slot, `móvel sem lugar: {name}`)
+	return Vector3.new(slot.X, 0, slot.Y)
 end
 
 -- `position` (no mundo) está dentro da sala dos fundos da loja do terreno `origin`?

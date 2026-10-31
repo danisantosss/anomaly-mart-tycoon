@@ -8,11 +8,13 @@ local Players = game:GetService("Players")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Hud = require(script.Hud)
 local OwnerDoor = require(script.OwnerDoor)
+local PadColors = require(script.PadColors)
 local PromptFilter = require(script.PromptFilter)
 local UpgradesUi = require(script.UpgradesUi)
 
 PromptFilter.start()
 OwnerDoor.start()
+PadColors.start()
 Hud.start()
 UpgradesUi.start()
 

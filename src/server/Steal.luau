@@ -11,6 +11,7 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Anomalies = require(ReplicatedStorage.Shared.Anomalies)
+local BuildCatalog = require(ReplicatedStorage.Shared.Builds)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Cells = require(script.Parent.Cells)
@@ -177,11 +178,20 @@ local function onPromptTriggered(prompt: ProximityPrompt, thief: Player)
 	Cells.setHidden(owner, cell, true)
 	carrying[thief] = { owner = owner, cell = cell, marker = makeMarker(thief, cell) }
 	thief:SetAttribute("CarryingStolen", true)
-	setSpeed(thief, Settings.CARRY_SPEED)
+	-- Câmeras de segurança na loja roubada: o ladrão fica ainda mais lento.
+	local ownerData = Data.get(owner)
+	local cameras = ownerData ~= nil and BuildCatalog.has(ownerData.Builds, "cameras")
+	setSpeed(thief, if cameras then Settings.CARRY_SPEED_CAMERAS else Settings.CARRY_SPEED)
 
 	local name = Anomalies.fullName(cell.Kind, cell.Variant)
 	tell(thief, `Run back to your store's back room with the {name}!`, INFO)
-	tell(owner, `{thief.DisplayName} is stealing your {name}! Catch them!`, BAD)
+	tell(
+		owner,
+		if cameras
+			then `CAMERAS: {thief.DisplayName} is stealing your {name}! They're slowed down, catch them!`
+			else `{thief.DisplayName} is stealing your {name}! Catch them!`,
+		BAD
+	)
 end
 
 local function watchLoop()
