@@ -12,6 +12,7 @@ export type Definition = {
 	rarity: Rarity,
 	incomePerSecond: number, -- renda na cela, antes da variante
 	weight: number, -- chance relativa de aparecer de madrugada
+	clue: string, -- a pista que o jogador deve aprender a notar (aparece na mensagem depois da decisão)
 }
 
 export type Variant = {
@@ -22,12 +23,54 @@ export type Variant = {
 }
 
 local LIST: { Definition } = {
-	{ id = "LongNeck", displayName = "Long Neck", rarity = "Common", incomePerSecond = 2, weight = 30 },
-	{ id = "Backwards", displayName = "Backwards", rarity = "Common", incomePerSecond = 2, weight = 30 },
-	{ id = "NoFace", displayName = "No Face", rarity = "Uncommon", incomePerSecond = 6, weight = 15 },
-	{ id = "Twin", displayName = "The Twin", rarity = "Uncommon", incomePerSecond = 6, weight = 12 },
-	{ id = "SaltBuyer", displayName = "Salt Buyer", rarity = "Rare", incomePerSecond = 20, weight = 9 },
-	{ id = "Smiler", displayName = "The Smiler", rarity = "Epic", incomePerSecond = 75, weight = 4 },
+	{
+		id = "LongNeck",
+		displayName = "Long Neck",
+		rarity = "Common",
+		incomePerSecond = 2,
+		weight = 30,
+		clue = "Look at the neck.",
+	},
+	{
+		id = "Backwards",
+		displayName = "Backwards",
+		rarity = "Common",
+		incomePerSecond = 2,
+		weight = 30,
+		clue = "It walks facing the wrong way.",
+	},
+	{
+		id = "NoFace",
+		displayName = "No Face",
+		rarity = "Uncommon",
+		incomePerSecond = 6,
+		weight = 15,
+		clue = "It has no face.",
+	},
+	{
+		id = "Twin",
+		displayName = "The Twin",
+		rarity = "Uncommon",
+		incomePerSecond = 6,
+		weight = 12,
+		clue = "It looks exactly like another customer.",
+	},
+	{
+		id = "SaltBuyer",
+		displayName = "Salt Buyer",
+		rarity = "Rare",
+		incomePerSecond = 20,
+		weight = 9,
+		clue = "It carries salt and empties the whole shelf.",
+	},
+	{
+		id = "Smiler",
+		displayName = "The Smiler",
+		rarity = "Epic",
+		incomePerSecond = 75,
+		weight = 4,
+		clue = "That smile is too wide.",
+	},
 }
 
 -- Sorteadas só com a sorte do jogo. Nunca vender por Robux (regra de itens aleatórios pagos).

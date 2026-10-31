@@ -48,6 +48,7 @@ Config.Customers = {
 	DAY_INTERVAL = 6, -- segundos entre um cliente e outro, de dia
 	NIGHT_INTERVAL = 15,
 	MAX_IN_STORE = 6,
+	MAX_IN_SERVER = 32, -- teto de NPCs somando todas as lojas (R15 pesa no celular)
 	ITEM_PRICE = 5,
 	NIGHT_PRICE_MULTIPLIER = 3,
 	MIN_ITEMS = 1,
@@ -61,11 +62,20 @@ Config.Customers = {
 -- Anomalias e celas (docs/V1.md, seções 5 e 6). Os tipos e variantes ficam em Shared/Anomalies.luau.
 Config.Anomalies = {
 	NIGHT_CHANCE = 1 / 3, -- chance de um cliente da madrugada ser anomalia
-	BAD_SERVE_SAFE_LOSS = 0.10, -- atender uma anomalia: ela leva 10% do cofre
-	REFUSED_HUMAN_PENALTY_SECONDS = 30, -- recusar/assustar humano: clientes vêm na metade do ritmo
+	BAD_SERVE_SAFE_LOSS = 0.10, -- atender uma anomalia: ela leva 10% do cofre...
+	BAD_SERVE_MAX_LOSS_SECONDS = 60, -- ...mas no máximo 60 s da renda das celas (mínimo $100)
+	MISTAKE_GRACE = 2, -- os 2 primeiros erros de cada sessão só dão aviso, sem punição
+	REFUSED_HUMAN_PENALTY_SECONDS = 10, -- recusar/assustar humano: clientes vêm na metade do ritmo
 	CAPTURE_HOLD_SECONDS = 2,
 	CAPTURE_DISTANCE = 12,
 	ESCAPE_AFTER_SECONDS = 30, -- anomalia ignorada esse tempo no caixa foge para o vizinho
+}
+
+-- Primeira anomalia do jogador novo (sem nenhuma cela): aparece de dia, logo depois das primeiras vendas, e
+-- pode ser capturada mesmo de dia. Assim ele vê o diferencial do jogo sem esperar a madrugada.
+Config.Tutorial = {
+	SALES_BEFORE_ANOMALY = 2,
+	ANOMALY = "LongNeck",
 }
 
 -- Roubo e porta de aço (docs/V1.md, seção 6).

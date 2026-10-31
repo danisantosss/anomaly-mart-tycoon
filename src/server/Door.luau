@@ -1,10 +1,10 @@
 --!strict
 -- Porta de aço da sala dos fundos (docs/V1.md, seção 6).
 --
--- O dono aperta "Lock Door" na porta dos fundos: ela fecha por 60 s e ninguém passa (nem ele). Depois
--- precisa esperar a recarga, contada a partir do momento em que trancou.
+-- O dono aperta "Lock Door" na porta dos fundos: ela fecha por 60 s e ninguém passa, menos ele (o cliente
+-- dele deixa a porta sem colisão só para ele, ver client/OwnerDoor.luau). Depois precisa esperar a recarga,
+-- contada a partir do momento em que trancou.
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -37,6 +37,8 @@ local function setup(player: Player)
 	if door == nil or not door:IsA("BasePart") then
 		return
 	end
+
+	door:SetAttribute("OwnerUserId", player.UserId)
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "LockPrompt"
@@ -84,10 +86,7 @@ end
 -- Precisa rodar depois de Plots.start().
 function Door.start()
 	notify = Remotes.get("Notify")
-	Players.PlayerAdded:Connect(setup)
-	for _, player in Players:GetPlayers() do
-		task.spawn(setup, player)
-	end
+	Plots.onStoreReady(setup)
 end
 
 return Door

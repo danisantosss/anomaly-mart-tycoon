@@ -123,10 +123,7 @@ end
 
 -- Precisa rodar depois de Plots.start() e Passes.start().
 function Shelves.start()
-	Players.PlayerAdded:Connect(setupStore)
-	for _, player in Players:GetPlayers() do
-		task.spawn(setupStore, player)
-	end
+	Plots.onStoreReady(setupStore)
 	task.spawn(restockRobotLoop)
 end
 

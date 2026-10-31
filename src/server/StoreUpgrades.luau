@@ -2,7 +2,6 @@
 -- Compra e efeitos dos upgrades da loja (docs/V1.md, seção 7). O catálogo e os preços ficam em
 -- Shared/Upgrades.luau; aqui o servidor valida a compra, salva o nível e aplica o efeito.
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -131,7 +130,7 @@ local function setupTerminal(player: Player)
 	prompt.Parent = terminal
 end
 
-local function onPlayerAdded(player: Player)
+local function onStoreReady(player: Player)
 	setupTerminal(player)
 	player.CharacterAdded:Connect(function(character)
 		character:WaitForChild("Humanoid")
@@ -152,10 +151,7 @@ function StoreUpgrades.start()
 		end
 	end)
 
-	Players.PlayerAdded:Connect(onPlayerAdded)
-	for _, player in Players:GetPlayers() do
-		task.spawn(onPlayerAdded, player)
-	end
+	Plots.onStoreReady(onStoreReady)
 end
 
 return StoreUpgrades

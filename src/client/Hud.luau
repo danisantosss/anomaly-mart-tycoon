@@ -1,5 +1,5 @@
 --!strict
--- HUD: o saldo grande no topo da tela, a fase do dia com o tempo restante e o "+$" que sobe ao coletar o
+-- HUD: o saldo grande no topo da tela, o que está no cofre com a renda por segundo, a fase do dia com o tempo restante e o "+$" que sobe ao coletar o
 -- cofre.
 -- O valor vem do atributo "Cash" que o servidor coloca no jogador; o cliente só mostra.
 
@@ -18,6 +18,7 @@ local Hud = {}
 local CASH_GREEN = Color3.fromRGB(120, 255, 140)
 local DAY_COLOR = Color3.fromRGB(255, 220, 120)
 local NIGHT_COLOR = Color3.fromRGB(150, 170, 255)
+local SAFE_COLOR = Color3.fromRGB(200, 230, 200)
 
 local function makeLabel(name: string, parent: Instance): TextLabel
 	local label = Instance.new("TextLabel")
@@ -69,11 +70,29 @@ function Hud.start()
 	player:GetAttributeChangedSignal("Cash"):Connect(updateCash)
 	updateCash()
 
-	-- Fase do dia e tempo restante, logo abaixo do dinheiro.
+	-- Embaixo do saldo: quanto está no cofre (ainda não é seu, pode ser perdido) e a renda das celas.
+	local safeLabel = makeLabel("Safe", gui)
+	safeLabel.AnchorPoint = Vector2.new(0.5, 0)
+	safeLabel.Size = UDim2.fromScale(0.3, 0.035)
+	safeLabel.Position = UDim2.fromScale(0.5, 0.1)
+	safeLabel.TextColor3 = SAFE_COLOR
+
+	local function updateSafe()
+		local safe = player:GetAttribute("SafeBalance")
+		local income = player:GetAttribute("IncomePerSecond")
+		local safeText = NumberFormat.cash(if typeof(safe) == "number" then safe else 0)
+		local incomeText = NumberFormat.cash(if typeof(income) == "number" then income else 0)
+		safeLabel.Text = `In safe: {safeText} · +{incomeText}/s`
+	end
+	player:GetAttributeChangedSignal("SafeBalance"):Connect(updateSafe)
+	player:GetAttributeChangedSignal("IncomePerSecond"):Connect(updateSafe)
+	updateSafe()
+
+	-- Fase do dia e tempo restante.
 	local phaseLabel = makeLabel("Phase", gui)
 	phaseLabel.AnchorPoint = Vector2.new(0.5, 0)
 	phaseLabel.Size = UDim2.fromScale(0.25, 0.045)
-	phaseLabel.Position = UDim2.fromScale(0.5, 0.1)
+	phaseLabel.Position = UDim2.fromScale(0.5, 0.14)
 
 	RunService.Heartbeat:Connect(function()
 		local phase = ReplicatedStorage:GetAttribute("Phase")
@@ -95,7 +114,7 @@ function Hud.start()
 	toasts.BackgroundTransparency = 1
 	toasts.AnchorPoint = Vector2.new(0.5, 0)
 	toasts.Size = UDim2.fromScale(0.6, 0.3)
-	toasts.Position = UDim2.fromScale(0.5, 0.18)
+	toasts.Position = UDim2.fromScale(0.5, 0.2)
 	toasts.Parent = gui
 	local layout = Instance.new("UIListLayout")
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
