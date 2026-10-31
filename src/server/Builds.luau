@@ -158,11 +158,46 @@ local function standingOn(player: Player, pad: BasePart): boolean
 	return Vector3.new(offset.X, 0, offset.Z).Magnitude < pad.Size.X / 2 + 1.5
 end
 
+-- Desvia o botão se outro botão visível estiver em cima dele (dois botões encostados compravam juntos).
+local PAD_NUDGES = {
+	Vector3.zero,
+	Vector3.new(6, 0, 0),
+	Vector3.new(-6, 0, 0),
+	Vector3.new(0, 0, 6),
+	Vector3.new(0, 0, -6),
+	Vector3.new(12, 0, 0),
+	Vector3.new(-12, 0, 0),
+}
+
+local function freeSpot(position: Vector3, taken: { Vector3 }): Vector3
+	for _, nudge in PAD_NUDGES do
+		local candidate = position + nudge
+		local clear = true
+		for _, other in taken do
+			if (Vector3.new(other.X, 0, other.Z) - candidate).Magnitude < 5.5 then
+				clear = false
+				break
+			end
+		end
+		if clear then
+			return candidate
+		end
+	end
+	return position
+end
+
 local function makePad(player: Player, pads: Folder, origin: CFrame, piece: BuildCatalog.Piece)
-	local position = padPosition(piece)
-	if position == nil then
+	local wanted = padPosition(piece)
+	if wanted == nil then
 		return
 	end
+	local taken = {}
+	for _, other in pads:GetChildren() do
+		if other:IsA("BasePart") then
+			table.insert(taken, origin:PointToObjectSpace(other.Position))
+		end
+	end
+	local position = freeSpot(wanted, taken)
 	local pad = Instance.new("Part")
 	pad.Name = piece.id
 	pad.Anchored = true

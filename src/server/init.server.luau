@@ -42,7 +42,7 @@ Builds.start() -- reconstrói o que o jogador comprou: depois de Shelves, Cells,
 Customers.start()
 Steal.start()
 StreetMonsters.start()
-RiftInvasion.start() -- depois de StreetMonsters (pausa a Fenda durante a invasão)
+RiftInvasion.start() -- depois de StreetMonsters (chuva de monstros no fim)
 RiftLure.start() -- registra os produtos no Receipts
 Receipts.start()
 Weapons.start() -- depois de StreetMonsters, RiftInvasion e Steal

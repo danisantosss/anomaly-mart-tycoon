@@ -3,7 +3,7 @@
 --
 -- Em algumas madrugadas (sempre na Lua Vermelha) a Fenda se abre de vez e sai o Colosso da Fenda, um monstro
 -- gigante que anda devagar pela faixa até o Ralo. Enquanto ele está vivo, a renda de todo mundo cai 20%
--- (Economy.incomeMultiplier) e não sai monstro novo da Fenda. Todo mundo pode chegar perto e apertar "Zap"
+-- (Economy.incomeMultiplier). Todo mundo pode chegar perto e apertar "Zap"
 -- para tirar vida dele. De tempos em tempos ele ergue os braços e bate no chão: quem estiver perto fica uns
 -- segundos sem conseguir dar Zap.
 --
@@ -60,7 +60,6 @@ local random = Random.new()
 
 local function setActive(value: boolean)
 	ReplicatedStorage:SetAttribute("InvasionActive", value)
-	StreetMonsters.setPaused(value)
 end
 
 local function makeBillboard(boss: Boss)

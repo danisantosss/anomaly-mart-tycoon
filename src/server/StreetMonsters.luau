@@ -88,7 +88,6 @@ local pending: { [Player]: number } = {} -- monstros pagos ainda a caminho, por 
 local random = Random.new()
 local folder: Folder
 local notify: RemoteEvent
-local paused = false -- durante a Invasão da Fenda não sai monstro novo
 local spawnBoost = 1 -- evento Rift Storm (RandomEvents.luau): monstros saem mais rápido
 
 local function tell(player: Player, text: string, color: Color3)
@@ -357,8 +356,26 @@ function standUp(wanderer: Wanderer)
 			Vector3.new(position.X + 10, wanderer.standY, position.Z)
 		)
 	)
+	wanderer.root.AssemblyLinearVelocity = Vector3.zero
 	wanderer.root.Anchored = false
 	wanderer.root:SetNetworkOwner(nil)
+	wanderer.humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+end
+
+-- Rede de segurança: monstro que caiu pelo chão volta em pé para a faixa, no mesmo X.
+local function rescue(wanderer: Wanderer)
+	local position = wanderer.root.Position
+	wanderer.root.Anchored = true
+	wanderer.model:PivotTo(
+		CFrame.lookAt(
+			Vector3.new(position.X, wanderer.standY, wanderer.lane),
+			Vector3.new(position.X + 10, wanderer.standY, wanderer.lane)
+		)
+	)
+	wanderer.root.AssemblyLinearVelocity = Vector3.zero
+	wanderer.root.Anchored = false
+	wanderer.root:SetNetworkOwner(nil)
+	wanderer.humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
 end
 
 -- Nocaute: cai de lado, solta estrelinhas e libera a captura por Combat.KO_SECONDS.
@@ -437,6 +454,10 @@ local function brain(wanderer: Wanderer)
 		local now = os.clock()
 		if position.X >= Layout.DRAIN_X - 3 or now - bornAt > 360 then
 			break
+		end
+		if position.Y < -5 then
+			rescue(wanderer)
+			continue
 		end
 
 		-- Água-viva: dá choque em quem está perto, sem precisar ir atrás.
@@ -708,7 +729,12 @@ local function spawnOne(startX: number?, boost: number?, force: boolean?, lure: 
 			if model.Parent == nil then
 				return
 			end
+			model:PivotTo(standing)
+			root.AssemblyLinearVelocity = Vector3.zero
 			root.Anchored = false
+			-- Depois de ficar ancorado embaixo do chão, o Humanoid pode achar que está caindo: força ele a
+			-- "levantar" em pé. Se mesmo assim cair, o cérebro traz de volta (ver `rescue`).
+			humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
 		end
 		root:SetNetworkOwner(nil) -- o servidor controla, sem engasgos
 		brain(wanderer)
@@ -751,11 +777,6 @@ function StreetMonsters.summon(player: Player, kind: string): boolean
 	return ok
 end
 
--- Pausa (ou volta) a saída de monstros da Fenda.
-function StreetMonsters.setPaused(value: boolean)
-	paused = value
-end
-
 -- Solta `count` monstros com sorte extra ao redor de `x` (prêmio por derrotar o Colosso da Fenda).
 function StreetMonsters.lootRain(x: number, count: number, boost: number)
 	for index = 1, count do
@@ -785,9 +806,6 @@ function StreetMonsters.start()
 		end
 		while true do
 			task.wait(spawnInterval())
-			if paused then
-				continue
-			end
 			local ok, problem = pcall(spawnOne)
 			if not ok then
 				warn(`[StreetMonsters] {problem}`)
