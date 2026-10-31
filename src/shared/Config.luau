@@ -290,6 +290,32 @@ Config.MonsterPowers = {
 	RIFT_KING_SERVER_BONUS = 0.1, -- renda de todo mundo no servidor, por Rift King no servidor inteiro
 }
 
+-- Invasão da Fenda (server/RiftInvasion.luau, docs/V3.md seção 7): um chefe gigante que o servidor inteiro
+-- derruba junto.
+Config.RiftInvasion = {
+	NIGHT_CHANCE = 0.5, -- chance de ter invasão em cada madrugada (Lua Vermelha: sempre)
+	STUDIO_NIGHT_CHANCE = 1, -- no Studio, para testar sem esperar
+	DELAY_SECONDS = 20, -- depois que a madrugada começa
+	WARNING_SECONDS = 12, -- aviso antes de ele sair da Fenda
+	SCALE = 2.5, -- tamanho do Colosso (o modelo base tem uns 12 studs)
+	WALK_SPEED = 3,
+	HEALTH_BASE = 220,
+	HEALTH_PER_EXTRA_PLAYER = 180, -- por jogador a mais no servidor
+	ZAP_DAMAGE = 1,
+	ZAP_COOLDOWN = 0.25, -- segundos entre dois Zaps do mesmo jogador
+	ZAP_DISTANCE = 45,
+	SLAM_EVERY_SECONDS = 9,
+	SLAM_RADIUS = 30,
+	SLAM_STUN_SECONDS = 2.5, -- quem é pego pela pancada fica sem dar Zap
+	INCOME_DRAIN = 0.8, -- enquanto ele está vivo, a renda de todo mundo vezes isto
+	REWARD_SECONDS = 120, -- prêmio = X segundos da renda do jogador...
+	REWARD_MIN = 500, -- ...nunca menos que isto
+	MVP_MULTIPLIER = 2, -- quem mais bateu ganha o dobro
+	MIN_HITS = 3, -- precisa ter ajudado pelo menos isto para ganhar prêmio
+	LOOT_COUNT = 5, -- monstros que caem quando ele morre
+	LOOT_LUCK = 4, -- sorte de raridade desses monstros
+}
+
 -- Ajudas para testar no Studio. Não têm efeito no jogo publicado.
 Config.Debug = {
 	-- Renda extra por segundo no cofre, só no Studio. Útil para testar compras sem jogar muito.

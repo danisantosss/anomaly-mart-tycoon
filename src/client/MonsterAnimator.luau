@@ -40,8 +40,9 @@ local function set(joints: Joints, name: string, transform: CFrame)
 	end
 end
 
--- Cada tipo recebe as juntas, o tempo (já com a fase própria do monstro) e quanto está andando (0 a 1).
-local ANIMATIONS: { [string]: (Joints, number, number) -> () } = {
+-- Cada tipo recebe as juntas, o tempo (já com a fase própria do monstro), quanto está andando (0 a 1) e o
+-- modelo (para ler atributos, como o "SlamAt" do Colosso).
+local ANIMATIONS: { [string]: (Joints, number, number, Model) -> () } = {
 	Gloop = function(joints, t, moving)
 		local wobble = math.sin(t * (3 + moving * 4))
 		set(
@@ -79,7 +80,7 @@ local ANIMATIONS: { [string]: (Joints, number, number) -> () } = {
 		set(joints, "Tail1", rot(0, math.sin(t * 10) * 0.6, 0))
 		set(joints, "Tail2", rot(0, math.sin(t * 10 - 0.6) * 0.5, 0))
 		set(joints, "Head", rot(math.sin(t * 1.3) * 0.1, math.sin(t * 0.7) * 0.25, 0))
-		set(joints, "Jaw", rot(math.max(0, math.sin(t * 4)) * 0.4, 0, 0))
+		set(joints, "Jaw", rot(-math.max(0, math.sin(t * 4)) * 0.4, 0, 0))
 	end,
 
 	EyeSpider = function(joints, t, moving)
@@ -141,6 +142,35 @@ local ANIMATIONS: { [string]: (Joints, number, number) -> () } = {
 		set(joints, "ArmR", rot(math.sin(stride) * swing * 0.6, 0, -0.05))
 		set(joints, "Neck", rot(0, 0, math.sin(t * 0.6) * 0.35))
 		set(joints, "Halo", rot(t, 0, 0))
+	end,
+
+	-- Colosso da Fenda (chefe da Invasão): anda nos punhos e, no "SlamAt" (hora do servidor), ergue os
+	-- dois braços por 1 s e bate no chão.
+	RiftColossus = function(joints, t, moving, model)
+		local stride = t * 1.8
+		local swing = 0.35 * math.max(moving, 0.3)
+		local slamAt = model:GetAttribute("SlamAt")
+		local slam = 0 -- 0 = normal, sobe até 1 com os braços erguidos, volta a 0 na batida
+		if typeof(slamAt) == "number" then
+			local since = workspace:GetServerTimeNow() - (slamAt - 1)
+			if since >= 0 and since < 1 then
+				slam = since -- erguendo
+			elseif since >= 1 and since < 1.25 then
+				slam = 1 - (since - 1) * 4 -- batendo
+			end
+		end
+		local raise = 2.4 * slam -- ângulo positivo leva a mão para a frente e para cima
+		set(joints, "ArmL", rot(math.sin(stride) * swing * (1 - slam) + raise, 0, 0))
+		set(joints, "ArmR", rot(-math.sin(stride) * swing * (1 - slam) + raise, 0, 0))
+		set(joints, "LegL", rot(-math.sin(stride) * swing, 0, 0))
+		set(joints, "LegR", rot(math.sin(stride) * swing, 0, 0))
+		set(
+			joints,
+			"Body",
+			CFrame.new(0, math.abs(math.sin(stride)) * 0.3, 0) * rot(0.3 * slam, 0, math.sin(stride) * 0.05)
+		)
+		set(joints, "Head", rot(0.3 * slam, math.sin(t * 0.7) * 0.4, 0))
+		set(joints, "Jaw", rot(-math.max(0, math.sin(t * 1.3)) * 0.4 - slam * 0.5, 0, 0))
 	end,
 
 	RiftKing = function(joints, t, _moving)
@@ -227,7 +257,7 @@ local function step()
 		local moving = math.clamp(speed / 6, 0, 1)
 		local animate = ANIMATIONS[entry.kind]
 		if animate then
-			animate(entry.joints, now + entry.seed, moving)
+			animate(entry.joints, now + entry.seed, moving, model)
 		end
 		if flicker then
 			for _, screen in entry.static do

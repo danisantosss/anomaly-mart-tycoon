@@ -866,6 +866,171 @@ BUILDERS.RiftKing = function()
 	return rig
 end
 
+-- Colosso da Fenda: o chefe da Invasão da Fenda (server/RiftInvasion.luau). Corcunda, anda apoiado nos
+-- punhos, com um olho só e cristais da Fenda nas costas. Nasce no tamanho de um monstro grande e o
+-- RiftInvasion aumenta com ScaleTo.
+BUILDERS.RiftColossus = function()
+	local rig = newRig("RiftColossus", 7)
+	local void = Color3.fromRGB(32, 20, 48)
+	local stone = Color3.fromRGB(58, 44, 76)
+	local purple = Color3.fromRGB(170, 70, 255)
+	local red = Color3.fromRGB(255, 60, 90)
+
+	local body = rig.add(
+		"Body",
+		"Ellipsoid",
+		Vector3.new(8, 7, 6),
+		at(0, 2, 0) * rot(-20, 0, 0),
+		void,
+		Enum.Material.Slate,
+		nil,
+		Vector3.new(0, -3, 0)
+	)
+	-- Rachaduras de neon no peito, como as do chão perto da Fenda.
+	for index, crack in { { 0, 0.6, 12 }, { -0.9, -0.6, -25 }, { 0.8, -0.9, 30 } } do
+		rig.add(
+			`Crack{index}`,
+			"Block",
+			Vector3.new(0.35, 2.6, 0.35),
+			at(crack[1], crack[2], -2.85) * rot(0, 0, crack[3]),
+			purple,
+			NEON,
+			body
+		)
+	end
+	light(body, purple, 30, 2.5)
+	local aura = Instance.new("ParticleEmitter")
+	aura.Color = ColorSequence.new(Color3.fromRGB(190, 120, 255), Color3.fromRGB(60, 0, 120))
+	aura.LightEmission = 1
+	aura.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.5), NumberSequenceKeypoint.new(1, 0) })
+	aura.Transparency = NumberSequence.new(0.4, 1)
+	aura.Lifetime = NumberRange.new(1.5, 2.5)
+	aura.Rate = 18
+	aura.Speed = NumberRange.new(1, 3)
+	aura.SpreadAngle = Vector2.new(180, 180)
+	aura.Parent = body
+
+	-- Cristais da Fenda saindo das costas.
+	for index, shard in
+		{
+			{ 0, 3.2, 1.2, 0, 3.4 },
+			{ -1.8, 2.6, 1.8, -25, 2.6 },
+			{ 1.8, 2.6, 1.8, 25, 2.6 },
+			{ -1, 1.2, 2.7, -15, 2 },
+			{ 1.1, 1, 2.7, 20, 2.2 },
+		}
+	do
+		rig.add(
+			`Shard{index}`,
+			"Block",
+			Vector3.new(0.9, shard[5], 0.9),
+			at(shard[1], shard[2], shard[3]) * rot(-35, 45, shard[4]),
+			purple,
+			NEON,
+			body
+		)
+	end
+
+	local head = rig.add(
+		"Head",
+		"Ball",
+		Vector3.one * 3.6,
+		at(0, 2, -3) * rot(20, 0, 0),
+		stone,
+		Enum.Material.Slate,
+		body,
+		Vector3.new(0, -1, 0.6)
+	)
+	eye(rig, "Eye", head, at(0, 0.45, -1.45), 1.6, red)
+	light(head, red, 14, 2)
+	for index, x in { -0.9, 0.9 } do
+		rig.add(
+			`Brow{index}`,
+			"Block",
+			Vector3.new(1.3, 0.35, 0.5),
+			at(x, 1.3, -1.25) * rot(0, 0, x * 18),
+			void,
+			nil,
+			head
+		)
+	end
+	local jaw = rig.add(
+		"Jaw",
+		"Block",
+		Vector3.new(2.8, 0.8, 1.8),
+		at(0, -1.45, -0.9),
+		stone,
+		Enum.Material.Slate,
+		head,
+		Vector3.new(0, 0, 0.9)
+	)
+	for tooth = -2, 2 do
+		rig.add(
+			`Tooth{tooth + 3}`,
+			"Wedge",
+			Vector3.new(0.3, 0.6, 0.3),
+			at(tooth * 0.5, 0.6, -0.75),
+			WHITE,
+			nil,
+			jaw
+		)
+	end
+
+	-- Braços compridos: ele anda apoiado nos punhos, como um gorila.
+	for _, arm in { { "ArmL", -4.2 }, { "ArmR", 4.2 } } do
+		local name, x = arm[1] :: string, arm[2] :: number
+		local upper = rig.add(
+			name,
+			"Block",
+			Vector3.new(1.6, 4.6, 1.6),
+			at(x, 3.8, -1.2) * at(0, -2.3, 0),
+			void,
+			Enum.Material.Slate,
+			nil,
+			Vector3.new(0, 2.3, 0)
+		)
+		local lower = rig.add(
+			`{name}Low`,
+			"Block",
+			Vector3.new(1.4, 4.2, 1.4),
+			at(0, -4.4, 0),
+			stone,
+			Enum.Material.Slate,
+			upper,
+			Vector3.new(0, 2.1, 0)
+		)
+		local fist =
+			rig.add(`{name}Fist`, "Ball", Vector3.one * 2.2, at(0, -3, 0), stone, Enum.Material.Slate, lower)
+		rig.add(`{name}Glow`, "Block", Vector3.new(1.8, 0.25, 0.25), at(0, 0.3, -1), purple, NEON, fist)
+	end
+
+	for _, leg in { { "LegL", -2 }, { "LegR", 2 } } do
+		local name, x = leg[1] :: string, leg[2] :: number
+		local upper = rig.add(
+			name,
+			"Block",
+			Vector3.new(1.8, 3, 1.8),
+			at(x, -0.6, 0.5) * at(0, -1.5, 0),
+			void,
+			Enum.Material.Slate,
+			nil,
+			Vector3.new(0, 1.5, 0)
+		)
+		local lower = rig.add(
+			`{name}Low`,
+			"Block",
+			Vector3.new(1.6, 2.6, 1.6),
+			at(0, -2.8, 0),
+			stone,
+			Enum.Material.Slate,
+			upper,
+			Vector3.new(0, 1.3, 0)
+		)
+		rig.add(`{name}Foot`, "Block", Vector3.new(2.2, 0.8, 3), at(0, -1.7, -0.5), void, nil, lower)
+	end
+	return rig
+end
+
 -- Variantes (as mesmas da loja): brilho dourado, cores invertidas, gigante e glitch.
 local function applyVariant(model: Model, variant: string)
 	if variant == "Shiny" then
