@@ -147,8 +147,8 @@ Config.Daily = {
 	DAY7_BOOST_MINUTES = 15,
 }
 
--- Presentes por tempo jogado na sessão (minutos). Os pares dão dinheiro (2 minutos da renda atual, no mínimo
--- $200) e os ímpares um boost de 2x por alguns minutos.
+-- Presentes por tempo jogado na sessão (minutos). O 1º, 3º e 5º dão dinheiro (2 minutos da renda atual, no mínimo
+-- $200); o 2º, 4º e 6º dão um boost de 2x por alguns minutos.
 Config.Gifts = {
 	MINUTES = { 3, 8, 15, 25, 40, 60 },
 	CASH_SECONDS_OF_INCOME = 120,

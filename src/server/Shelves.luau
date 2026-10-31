@@ -8,6 +8,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Analytics = require(script.Parent.Analytics)
 local Passes = require(script.Parent.Passes)
 local Plots = require(script.Parent.Plots)
 
@@ -139,6 +140,7 @@ function Shelves.setup(owner: Player, shelf: BasePart)
 	prompt.Triggered:Connect(function(who)
 		if who == owner then
 			Shelves.refill(shelf)
+			Analytics.step(owner, "FirstRestock")
 		end
 	end)
 

@@ -33,7 +33,7 @@ function Menu.start()
 	local column = Instance.new("Frame")
 	column.BackgroundTransparency = 1
 	column.AnchorPoint = Vector2.new(0, 0.5)
-	column.Position = UDim2.fromScale(0.01, 0.5)
+	column.Position = UDim2.fromScale(0.01, 0.42) -- um pouco acima do meio: embaixo fica o direcional do celular
 	column.Size = UDim2.fromScale(0.11, 0.42)
 	column.Parent = gui
 	local constraint = Instance.new("UISizeConstraint")

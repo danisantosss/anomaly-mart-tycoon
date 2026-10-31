@@ -23,6 +23,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local AnomalyLooks = require(script.Parent.AnomalyLooks)
+local Analytics = require(script.Parent.Analytics)
 local Builds = require(script.Parent.Builds)
 local Cells = require(script.Parent.Cells)
 local CustomerModel = require(script.Parent.CustomerModel)
@@ -326,6 +327,7 @@ local function chargeOne(state: StoreState): boolean
 		local amount = Economy.addToSafe(state.owner, customer.items * customer.price * multiplier)
 		floatingText(state.counter, "+" .. NumberFormat.cash(amount), GOOD)
 		state.sales += 1
+		Analytics.step(state.owner, "FirstSale")
 	end
 
 	task.spawn(leave, state, customer)
@@ -382,6 +384,7 @@ local function capture(state: StoreState, customer: Customer)
 	if data then
 		data.TotalCaptured += 1
 	end
+	Analytics.step(state.owner, "FirstCapture")
 	tell(state.owner, `Captured: {nameOf(customer)}!`, GOOD)
 	vanish(state, customer)
 end
@@ -590,6 +593,9 @@ local function spawnCustomer(state: StoreState)
 	}
 	table.insert(state.customers, customer)
 	addCapturePrompt(state, customer)
+	if kind ~= HUMAN then
+		Analytics.step(state.owner, "SawAnomaly")
+	end
 	if tutorial then
 		tell(
 			state.owner,

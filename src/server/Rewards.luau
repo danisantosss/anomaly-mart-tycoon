@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Analytics = require(script.Parent.Analytics)
 local Cells = require(script.Parent.Cells)
 local Data = require(script.Parent.Data)
 local Economy = require(script.Parent.Economy)
@@ -67,6 +68,7 @@ local function claimDaily(player: Player)
 
 	local amount = Config.Daily.REWARDS[data.DailyStreak] * (1 + data.Franchise)
 	Economy.addCash(player, amount)
+	Analytics.earn(player, amount, "TimedReward", `Daily_{data.DailyStreak}`)
 	local text = `Day {data.DailyStreak} reward: {NumberFormat.cash(amount)}!`
 	if data.DailyStreak == #Config.Daily.REWARDS then
 		Rewards.boost(player, Config.Daily.DAY7_BOOST_MINUTES)
@@ -96,6 +98,7 @@ local function claimGift(player: Player)
 		local amount =
 			math.max(Config.Gifts.CASH_MIN, math.floor(perSecond * Config.Gifts.CASH_SECONDS_OF_INCOME))
 		Economy.addCash(player, amount)
+		Analytics.earn(player, amount, "TimedReward", `Gift_{claimed + 1}`)
 		notify:FireClient(player, `Gift: {NumberFormat.cash(amount)}!`, GOOD)
 	else
 		Rewards.boost(player, Config.Gifts.BOOST_MINUTES)
@@ -122,6 +125,7 @@ local function redeemCode(player: Player, raw: unknown)
 	if reward.cash then
 		local amount = reward.cash * (1 + data.Franchise)
 		Economy.addCash(player, amount)
+		Analytics.earn(player, amount, "Code", code)
 		notify:FireClient(player, `Code redeemed: {NumberFormat.cash(amount)}!`, GOOD)
 	end
 	if reward.boostMinutes then

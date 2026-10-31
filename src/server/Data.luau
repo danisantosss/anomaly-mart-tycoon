@@ -30,6 +30,7 @@ export type PlayerData = {
 	DailyLastDay: number, -- dia (os.time() // 86400) da última recompensa diária
 	TotalEarned: number, -- tudo que já entrou no cofre (placar global)
 	TotalCaptured: number,
+	Onboarding: { [string]: boolean }, -- passos do funil de primeira vez já registrados (server/Analytics.luau)
 }
 
 local TEMPLATE: PlayerData = {
@@ -46,6 +47,7 @@ local TEMPLATE: PlayerData = {
 	DailyLastDay = 0,
 	TotalEarned = 0,
 	TotalCaptured = 0,
+	Onboarding = {},
 }
 
 -- Mudar o nome cria um banco novo e zera todo mundo. Só fazer isso antes do lançamento.

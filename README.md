@@ -9,6 +9,8 @@ Roblox Studio pelo [Rojo](https://rojo.space).
 - **Primeira vez aqui?** Siga o [passo a passo de instalação](docs/INSTALACAO.md).
 - **O que é o jogo:** [GDD v0.1](https://claude.ai/artifact/A811F2n3bTXoEB72r5mBBa) (documento vivo, pode
   comentar por lá).
+- **Como o jogo funciona hoje:** [V2: a loja que cresce](docs/V2.md) (peças, upgrades, Franquia, presentes,
+  Lua Vermelha, telemetria e como testar). A base do loop está em [V1](docs/V1.md).
 
 ## Estrutura
 

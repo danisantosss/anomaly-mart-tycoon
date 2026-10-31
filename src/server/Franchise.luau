@@ -12,6 +12,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Upgrades = require(ReplicatedStorage.Shared.Upgrades)
+local Analytics = require(script.Parent.Analytics)
 local Data = require(script.Parent.Data)
 local Economy = require(script.Parent.Economy)
 local Plots = require(script.Parent.Plots)
@@ -78,6 +79,8 @@ local function open(player: Player)
 	end
 	data.Franchise += 1
 	Economy.refreshDisplay(player)
+	Analytics.spend(player, cost, "Gameplay", "Franchise")
+	Analytics.event(player, "FranchiseOpened", data.Franchise)
 
 	publish(player)
 	Plots.rebuildStore(player)

@@ -13,6 +13,7 @@ local BuildCatalog = require(ReplicatedStorage.Shared.Builds)
 local Config = require(ReplicatedStorage.Shared.Config)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Analytics = require(script.Parent.Analytics)
 local Cells = require(script.Parent.Cells)
 local Data = require(script.Parent.Data)
 local Door = require(script.Parent.Door)
@@ -135,6 +136,8 @@ local function tryBuy(player: Player, id: string)
 	end
 
 	data.Builds[id] = true
+	Analytics.step(player, "FirstBuild")
+	Analytics.spend(player, piece.cost, "Shop", `Build_{id}`)
 	buildPiece(player, id, true)
 	afterBuild(player, id)
 	refreshPads(player)
