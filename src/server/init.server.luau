@@ -5,8 +5,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Economy = require(script.Economy)
 local Plots = require(script.Plots)
 
-Plots.start()
+Plots.start() -- primeiro: os outros sistemas usam a loja do jogador
+Economy.start()
 
 print(`[Anomaly Mart] servidor iniciado (v{Config.VERSION})`)

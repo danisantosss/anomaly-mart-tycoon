@@ -29,4 +29,16 @@ Config.Street = {
 	CELL_SIZE = Vector3.new(3, 7, 3),
 }
 
+-- Dinheiro (docs/V1.md, seção 3).
+Config.Economy = {
+	SAFE_COLLECT_COOLDOWN = 1, -- segundos entre duas coletas seguidas no cofre
+}
+
+-- Ajudas para testar no Studio. Não têm efeito no jogo publicado.
+Config.Debug = {
+	-- Enquanto ainda não existem vendas nem celas, o cofre ganha este valor por segundo no Studio, para dar
+	-- para testar a coleta. Vai a 0 quando as fontes de renda de verdade chegarem (PRs 5 e 6).
+	STUDIO_SAFE_INCOME_PER_SECOND = 25,
+}
+
 return Config
