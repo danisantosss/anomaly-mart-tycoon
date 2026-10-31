@@ -112,13 +112,15 @@ function CustomerModel.randomDescription(): HumanoidDescription
 		description.HairAccessory = tostring(hair)
 		description:SetAttribute("CatalogHair", true)
 	end
-	local hat = catalogItem("Hats", 0.3, look)
+	local hat = catalogItem("Hats", 0.25, look)
 	if hat then
 		description.HatAccessory = tostring(hat)
+		description:SetAttribute("CatalogHat", true)
 	end
-	local glasses = catalogItem("Glasses", 0.2, look)
+	local glasses = catalogItem("Glasses", 0.18, look)
 	if glasses then
 		description.FaceAccessory = tostring(glasses)
+		description:SetAttribute("CatalogGlasses", true)
 	end
 	local shirtId = catalogItem("Shirts", 0.85, look)
 	local pantsId = catalogItem("Pants", 0.85, look)
@@ -126,8 +128,11 @@ function CustomerModel.randomDescription(): HumanoidDescription
 		description.Shirt = shirtId
 		description.Pants = pantsId
 	end
-	local face = catalogItem("Faces", 0.8, look)
-	if face then
+	-- Rosto só aparece com cabeça clássica.
+	local head = catalogItem("Heads", 1, look)
+	local face = catalogItem("Faces", 1, look)
+	if head and face then
+		description.Head = head
 		description.Face = face
 	end
 	return description
@@ -173,7 +178,7 @@ local function ellipsoid(part: Part): Part
 end
 
 -- Acessórios feitos de Parts: cabelo, boné/gorro, óculos, barba, mochila ou sacola de compras.
-local function decorate(model: Model, look: Random, catalogHair: boolean)
+local function decorate(model: Model, look: Random, catalog: { [string]: boolean })
 	local head = model:FindFirstChild("Head")
 	local torso = model:FindFirstChild("UpperTorso")
 	local hand = model:FindFirstChild("RightHand")
@@ -185,7 +190,7 @@ local function decorate(model: Model, look: Random, catalogHair: boolean)
 	local hairColor = pick(HAIR, look)
 
 	-- Cabelo (se não veio do catálogo).
-	if not catalogHair and look:NextNumber() < 0.9 then
+	if not catalog.hair and look:NextNumber() < 0.9 then
 		local style = look:NextInteger(1, 5)
 		if style == 1 then -- curto
 			ellipsoid(
@@ -284,8 +289,8 @@ local function decorate(model: Model, look: Random, catalogHair: boolean)
 	end
 
 	-- Boné ou gorro.
-	local hatRoll = look:NextNumber()
-	if hatRoll < 0.22 then
+	local hatRoll = if catalog.hat then 1 else look:NextNumber()
+	if hatRoll < 0.12 then
 		local cap = pick(CAPS, look)
 		ellipsoid(
 			attach(
@@ -305,7 +310,7 @@ local function decorate(model: Model, look: Random, catalogHair: boolean)
 			CFrame.new(0, h * 0.32, -d * 0.62),
 			cap
 		)
-	elseif hatRoll < 0.32 then
+	elseif hatRoll < 0.2 then
 		local beanie = pick(SHIRTS, look)
 		ellipsoid(
 			attach(
@@ -332,7 +337,7 @@ local function decorate(model: Model, look: Random, catalogHair: boolean)
 	end
 
 	-- Óculos.
-	if look:NextNumber() < 0.25 then
+	if not catalog.glasses and look:NextNumber() < 0.12 then
 		local frame = if look:NextNumber() < 0.5
 			then Color3.fromRGB(20, 20, 24)
 			else Color3.fromRGB(150, 60, 40)
@@ -461,9 +466,13 @@ function CustomerModel.build(description: HumanoidDescription?): Model
 	model.Name = "Customer"
 
 	local seed = used:GetAttribute("LookSeed")
-	local catalogHair = used:GetAttribute("CatalogHair") == true
+	local catalog = {
+		hair = used:GetAttribute("CatalogHair") == true,
+		hat = used:GetAttribute("CatalogHat") == true,
+		glasses = used:GetAttribute("CatalogGlasses") == true,
+	}
 	if typeof(seed) == "number" then
-		decorate(model, Random.new(seed + 7), catalogHair)
+		decorate(model, Random.new(seed + 7), catalog)
 	end
 
 	local humanoid = model:FindFirstChildOfClass("Humanoid") :: Humanoid

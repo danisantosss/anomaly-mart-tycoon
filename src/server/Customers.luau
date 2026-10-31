@@ -150,7 +150,7 @@ end
 -- Lugar `slot` da fila (0 = na frente do caixa). A fila cresce em direção à porta.
 local function queueSpot(state: StoreState, slot: number): Vector3
 	local localPos = state.origin:PointToObjectSpace(state.counter.Position)
-	return point(state, localPos.X + slot * 2.5, localPos.Z - state.counter.Size.Z / 2 - 1.5)
+	return point(state, localPos.X + slot * 3.2, localPos.Z - state.counter.Size.Z / 2 - 1.5)
 end
 
 -- Anda em linha reta até `position`, desistindo depois de `timeout` segundos.
