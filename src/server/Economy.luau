@@ -114,9 +114,14 @@ end
 --   gamepass 2x Cash × Franquias (+50% cada) × Index (+2% por entrada) × amigos (+10% cada, até 30%)
 --   × boost temporário (2x, de presentes, códigos e recompensa diária)
 --   × Rift King (+10% para todo mundo no servidor, por Rift King preso em qualquer loja)
+--   × 0.8 durante a Invasão da Fenda
 function Economy.incomeMultiplier(player: Player): number
 	local multiplier = if Passes.has(player, "DoubleCash") then 2 else 1
 	multiplier *= MonsterPowers.serverMultiplier()
+	-- Invasão da Fenda: enquanto o Colosso está vivo, a Avenida inteira rende menos (RiftInvasion.luau).
+	if ReplicatedStorage:GetAttribute("InvasionActive") == true then
+		multiplier *= Config.RiftInvasion.INCOME_DRAIN
+	end
 	local data = Data.get(player)
 	if data then
 		multiplier *= 1 + data.Franchise * Config.Franchise.INCOME_BONUS

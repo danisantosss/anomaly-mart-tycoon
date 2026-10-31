@@ -53,6 +53,7 @@ local pending: { [Player]: number } = {} -- monstros pagos ainda a caminho, por 
 local random = Random.new()
 local folder: Folder
 local notify: RemoteEvent
+local paused = false -- durante a Invasão da Fenda não sai monstro novo
 
 local function tell(player: Player, text: string, color: Color3)
 	if player.Parent == Players then
@@ -247,11 +248,14 @@ local function luck(): (number, number)
 	return 1, 1
 end
 
-local function spawnOne(startX: number?)
-	if #wanderers >= Settings.MAX_ON_STREET then
+-- `boost` multiplica a sorte de raridade; `force` ignora o limite de monstros na rua (chuva de monstros
+-- depois da Invasão da Fenda).
+local function spawnOne(startX: number?, boost: number?, force: boolean?)
+	if #wanderers >= Settings.MAX_ON_STREET and not force then
 		return
 	end
 	local rarityLuck, variantLuck = luck()
+	rarityLuck *= boost or 1
 	local definition = Anomalies.pickStreet(random, rarityLuck)
 	local variant = Anomalies.pickVariant(random, variantLuck).id
 
@@ -369,6 +373,22 @@ local function spawnInterval(): number
 	return Settings.SPAWN_SECONDS_DAY
 end
 
+-- Pausa (ou volta) a saída de monstros da Fenda.
+function StreetMonsters.setPaused(value: boolean)
+	paused = value
+end
+
+-- Solta `count` monstros com sorte extra ao redor de `x` (prêmio por derrotar o Colosso da Fenda).
+function StreetMonsters.lootRain(x: number, count: number, boost: number)
+	for index = 1, count do
+		local startX = math.clamp(x + (index - (count + 1) / 2) * 6, Layout.RIFT_X + 6, Layout.DRAIN_X - 30)
+		local ok, problem = pcall(spawnOne, startX, boost, true)
+		if not ok then
+			warn(`[StreetMonsters] {problem}`)
+		end
+	end
+end
+
 function StreetMonsters.start()
 	notify = Remotes.get("Notify")
 	folder = Instance.new("Folder")
@@ -387,6 +407,9 @@ function StreetMonsters.start()
 		end
 		while true do
 			task.wait(spawnInterval())
+			if paused then
+				continue
+			end
 			local ok, problem = pcall(spawnOne)
 			if not ok then
 				warn(`[StreetMonsters] {problem}`)
