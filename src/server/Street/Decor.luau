@@ -427,6 +427,135 @@ function Decor.billboard(
 	folder.Parent = parent
 end
 
+-- Boca de túnel do metrô, com a frente (saída) virada para -Z. Os clientes nascem lá dentro, no escuro
+-- (a peça "Darkness" não tem colisão), e saem andando.
+function Decor.subway(cframe: CFrame, parent: Instance)
+	local folder = Instance.new("Model")
+	folder.Name = "Subway"
+	local tile = Color3.fromRGB(215, 210, 196)
+	local trim = Color3.fromRGB(30, 90, 170)
+	local width, height, depth = 12, 10, 12
+	for _, side in { -1, 1 } do
+		part(
+			folder,
+			"Wall",
+			Vector3.new(1.5, height, depth),
+			cframe * CFrame.new(side * (width / 2 + 0.75), height / 2, depth / 2),
+			tile,
+			Enum.Material.Pavement
+		)
+		part(
+			folder,
+			"WallTrim",
+			Vector3.new(1.7, 0.8, depth + 0.2),
+			cframe * CFrame.new(side * (width / 2 + 0.75), height - 1, depth / 2),
+			trim,
+			Enum.Material.SmoothPlastic,
+			false
+		)
+	end
+	part(
+		folder,
+		"Roof",
+		Vector3.new(width + 3, 1.5, depth),
+		cframe * CFrame.new(0, height + 0.75, depth / 2),
+		tile,
+		Enum.Material.Pavement
+	)
+	part(
+		folder,
+		"Back",
+		Vector3.new(width, height, 1),
+		cframe * CFrame.new(0, height / 2, depth + 0.5),
+		Color3.fromRGB(10, 10, 12),
+		Enum.Material.SmoothPlastic
+	)
+	-- Escuridão de dentro do túnel (sem colisão: os clientes saem de dentro dela).
+	local darkness = part(
+		folder,
+		"Darkness",
+		Vector3.new(width - 0.2, height - 0.2, depth - 3),
+		cframe * CFrame.new(0, height / 2, depth / 2 + 1.5),
+		Color3.fromRGB(5, 5, 8),
+		Enum.Material.SmoothPlastic,
+		false
+	)
+	darkness.Transparency = 0.05
+	darkness.CanQuery = false
+	part(
+		folder,
+		"Floor",
+		Vector3.new(width, 0.2, depth + 2),
+		cframe * CFrame.new(0, 0.1, depth / 2 - 1),
+		Color3.fromRGB(120, 118, 112),
+		Enum.Material.Concrete,
+		false
+	)
+	-- Placa "METRO" com o M.
+	local sign = part(
+		folder,
+		"Sign",
+		Vector3.new(width + 3, 2.6, 0.6),
+		cframe * CFrame.new(0, height + 2.8, 0),
+		trim,
+		Enum.Material.SmoothPlastic
+	)
+	Decor.sign(sign, "Ⓜ METRO", Color3.new(1, 1, 1))
+	for _, side in { -1, 1 } do
+		local lamp = part(
+			folder,
+			"Lamp",
+			Vector3.new(0.8, 0.8, 0.8),
+			cframe * CFrame.new(side * (width / 2 + 0.75), height - 2.5, -0.5),
+			Color3.fromRGB(255, 240, 200),
+			NEON,
+			false
+		)
+		local light = Instance.new("PointLight")
+		light.Range = 14
+		light.Brightness = 1.2
+		light.Color = Color3.fromRGB(255, 235, 200)
+		light.Parent = lamp
+	end
+	folder.Parent = parent
+end
+
+-- Bueiro na rua. Alguns monstros sobem por ele (com vapor verde).
+function Decor.manhole(cframe: CFrame, parent: Instance, name: string)
+	local lid = cylinder(
+		parent,
+		name,
+		0.3,
+		5,
+		cframe * CFrame.new(0, 0.2, 0),
+		Color3.fromRGB(60, 62, 66),
+		Enum.Material.DiamondPlate
+	)
+	lid.CanCollide = false
+	local ring = cylinder(
+		parent,
+		`{name}Ring`,
+		0.25,
+		5.8,
+		cframe * CFrame.new(0, 0.18, 0),
+		Color3.fromRGB(90, 255, 140),
+		NEON
+	)
+	ring.CanCollide = false
+	local steam = Instance.new("ParticleEmitter")
+	steam.Name = "Steam"
+	steam.Color = ColorSequence.new(Color3.fromRGB(150, 255, 180), Color3.fromRGB(60, 120, 80))
+	steam.LightEmission = 0.4
+	steam.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 4) })
+	steam.Transparency = NumberSequence.new(0.5, 1)
+	steam.Lifetime = NumberRange.new(1, 2)
+	steam.Rate = 1.5
+	steam.Speed = NumberRange.new(3, 6)
+	steam.EmissionDirection = Enum.NormalId.Right -- o eixo do cilindro aponta para cima
+	steam.SpreadAngle = Vector2.new(15, 15)
+	steam.Parent = lid
+end
+
 -- Peça que gira sozinha no cliente (client/MonsterAnimator.luau, tag "Spin").
 function Decor.spin(target: BasePart, speed: number)
 	target:SetAttribute("SpinSpeed", speed)

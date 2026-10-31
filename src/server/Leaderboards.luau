@@ -23,7 +23,7 @@ local title: TextLabel
 local function buildBoard()
 	-- Na pracinha do lado do Ralo de Contenção, virado para a Avenida (fora da Faixa da Fenda).
 	local x = Layout.DRAIN_X - 8
-	local z = 40
+	local z = 52
 	local board = Parts.make({
 		name = "Leaderboard",
 		size = Vector3.new(16, 18, 1),

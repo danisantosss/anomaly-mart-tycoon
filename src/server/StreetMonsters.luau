@@ -264,12 +264,23 @@ local function spawnOne(startX: number?)
 	-- Mede a altura antes de mover, para o letreiro ficar logo acima da cabeça.
 	local boxCFrame, boxSize = model:GetBoundingBox()
 	local top = boxCFrame.Position.Y + boxSize.Y / 2 - root.Position.Y
-	local x = startX or Layout.RIFT_X
-	model:PivotTo(
-		CFrame.lookAt(Vector3.new(x, root.Position.Y, lane), Vector3.new(x + 10, root.Position.Y, lane))
-	)
+	-- De onde sai: posição dada (monstros iniciais), um bueiro no meio da rua ou a Fenda.
+	local manhole: number? = nil
+	if startX == nil and random:NextNumber() < Settings.MANHOLE_CHANCE then
+		manhole = random:NextInteger(1, #Layout.MANHOLES)
+	end
+	local x = startX or (if manhole then Layout.MANHOLES[manhole] else Layout.RIFT_X)
+	local z = if manhole then 0 else lane
+	local standing =
+		CFrame.lookAt(Vector3.new(x, root.Position.Y, z), Vector3.new(x + 10, root.Position.Y, z))
+	if manhole then
+		-- Sobe do bueiro: começa enterrado e ancorado, e o tween levanta até a altura normal.
+		root.Anchored = true
+		model:PivotTo(standing * CFrame.new(0, -root.Position.Y - 4, 0))
+	else
+		model:PivotTo(standing)
+	end
 	model.Parent = folder
-	root:SetNetworkOwner(nil) -- o servidor controla, sem engasgos
 
 	local wanderer: Wanderer = {
 		model = model,
@@ -299,9 +310,17 @@ local function spawnOne(startX: number?)
 
 	-- Faísca no portal da Fenda.
 	local street = workspace:FindFirstChild("Street")
-	local burst = street and street:FindFirstChild("RiftBurst", true)
-	if startX == nil and burst and burst:IsA("ParticleEmitter") then
-		burst:Emit(30)
+	if manhole then
+		local lid = street and street:FindFirstChild(`Manhole{manhole}`, true)
+		local steam = lid and lid:FindFirstChild("Steam")
+		if steam and steam:IsA("ParticleEmitter") then
+			steam:Emit(40)
+		end
+	else
+		local burst = street and street:FindFirstChild("RiftBurst", true)
+		if startX == nil and burst and burst:IsA("ParticleEmitter") then
+			burst:Emit(30)
+		end
 	end
 
 	if Settings.ANNOUNCE[definition.rarity] then
@@ -314,7 +333,31 @@ local function spawnOne(startX: number?)
 	humanoid.Died:Connect(function()
 		remove(wanderer)
 	end)
-	task.spawn(walkLane, wanderer)
+	task.spawn(function()
+		if manhole then
+			local start = model:GetPivot()
+			local rise = Instance.new("NumberValue")
+			rise.Changed:Connect(function(alpha)
+				if model.Parent then
+					model:PivotTo(start:Lerp(standing, alpha))
+				end
+			end)
+			local tween = TweenService:Create(
+				rise,
+				TweenInfo.new(1.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+				{ Value = 1 }
+			)
+			tween:Play()
+			tween.Completed:Wait()
+			rise:Destroy()
+			if model.Parent == nil then
+				return
+			end
+			root.Anchored = false
+		end
+		root:SetNetworkOwner(nil) -- o servidor controla, sem engasgos
+		walkLane(wanderer)
+	end)
 end
 
 local function spawnInterval(): number

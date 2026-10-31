@@ -269,7 +269,7 @@ local function buildRift(street: Folder)
 				rift,
 				"Barrier",
 				Vector3.new(1, 3, 6),
-				base * CFrame.new(16 + index * 7, 1.5, side * 24) * CFrame.Angles(0, math.rad(side * 15), 0),
+				base * CFrame.new(16 + index * 7, 1.5, side * 12) * CFrame.Angles(0, math.rad(side * 15), 0),
 				HAZARD,
 				Enum.Material.SmoothPlastic
 			)
@@ -288,7 +288,7 @@ local function buildRift(street: Folder)
 		rift,
 		"RiftSign",
 		Vector3.new(16, 4, 0.5),
-		base * CFrame.new(22, 7, -34) * CFrame.Angles(0, math.rad(-90), 0),
+		base * CFrame.new(22, 7, -52) * CFrame.Angles(0, math.rad(-90), 0),
 		Color3.fromRGB(25, 10, 40),
 		Enum.Material.SmoothPlastic
 	)
@@ -297,7 +297,7 @@ local function buildRift(street: Folder)
 		rift,
 		"RiftSignPost",
 		Vector3.new(0.6, 5, 0.6),
-		base * CFrame.new(22, 2.5, -34),
+		base * CFrame.new(22, 2.5, -52),
 		Color3.fromRGB(40, 40, 46),
 		Enum.Material.Metal
 	)
@@ -408,6 +408,35 @@ local function buildDrain(street: Folder)
 	drain.Parent = street
 end
 
+-- Bocas do metrô (de onde saem os clientes), calçada até elas e os bueiros dos monstros.
+local function buildTunnels(street: Folder)
+	local tunnels = Instance.new("Folder")
+	tunnels.Name = "Tunnels"
+	tunnels.Parent = street
+	for _, mouth in Layout.tunnels() do
+		Decor.subway(mouth, tunnels)
+		-- Calçada ligando a boca do túnel às calçadas das lojas.
+		local fromX, toX = mouth.Position.X, math.sign(mouth.Position.X) * (Layout.STREET_LENGTH / 2 - 2)
+		local length = math.abs(fromX - toX) + 6
+		Decor.part(
+			tunnels,
+			"Walkway",
+			Vector3.new(length, 0.12, Street.SIDEWALK_DEPTH),
+			CFrame.new(
+				(fromX + toX) / 2,
+				0.07,
+				math.sign(mouth.Position.Z) * (Street.ROAD_WIDTH / 2 + Street.SIDEWALK_DEPTH / 2)
+			),
+			Color3.fromRGB(170, 168, 160),
+			Enum.Material.Pavement,
+			false
+		)
+	end
+	for index, x in Layout.MANHOLES do
+		Decor.manhole(CFrame.new(x, 0, 0), tunnels, `Manhole{index}`)
+	end
+end
+
 -- Pórtico no meio da Avenida com o nome da rua.
 local function buildGantry(street: Folder)
 	local gantry = Instance.new("Model")
@@ -480,7 +509,7 @@ local function buildStreetProps(street: Folder)
 	-- Pracinhas nas duas pontas, perto da Fenda e do Ralo.
 	local random = Random.new(SEED + 2)
 	for _, x in { -half - 14, half + 14 } do
-		for _, z in { -32, 32 } do
+		for _, z in { -42, 42 } do
 			Decor.bench(CFrame.new(x, 0, z) * CFrame.Angles(0, if z > 0 then 0 else math.pi, 0), props)
 			Decor.tree(CFrame.new(x - 8, 0, z * 1.4), props, random)
 			Decor.tree(CFrame.new(x + 8, 0, z * 1.5), props, random)
@@ -488,14 +517,14 @@ local function buildStreetProps(street: Folder)
 		end
 	end
 	Decor.billboard(
-		CFrame.new(-half - 18, 0, 54) * CFrame.Angles(0, math.rad(200), 0),
+		CFrame.new(-half - 18, 0, 66) * CFrame.Angles(0, math.rad(200), 0),
 		props,
 		AD_TEXTS[2][1],
 		AD_TEXTS[2][2],
 		AD_TEXTS[2][3]
 	)
 	Decor.billboard(
-		CFrame.new(half + 18, 0, -54) * CFrame.Angles(0, math.rad(20), 0),
+		CFrame.new(half + 18, 0, -66) * CFrame.Angles(0, math.rad(20), 0),
 		props,
 		AD_TEXTS[1][1],
 		AD_TEXTS[1][2],
@@ -667,6 +696,7 @@ function StreetBuilder.build(): Folder
 	buildRift(street)
 	buildDrain(street)
 	buildGantry(street)
+	buildTunnels(street)
 	buildStreetProps(street)
 	buildCity(street, length)
 	buildLighting()
