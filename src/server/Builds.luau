@@ -216,7 +216,7 @@ function refreshPads(player: Player)
 		folder.Parent = store
 		pads = folder
 	end
-	assert(pads)
+	assert(pads, "Pads folder missing")
 
 	local wanted: { [string]: BuildCatalog.Piece } = {}
 	for _, piece in BuildCatalog.LIST do
