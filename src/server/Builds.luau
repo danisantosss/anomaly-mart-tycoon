@@ -147,6 +147,17 @@ local function tryBuy(player: Player, id: string)
 	end
 end
 
+-- O jogador está em cima (ou quase) deste botão?
+local function standingOn(player: Player, pad: BasePart): boolean
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root == nil or not root:IsA("BasePart") then
+		return false
+	end
+	local offset = root.Position - pad.Position
+	return Vector3.new(offset.X, 0, offset.Z).Magnitude < pad.Size.X / 2 + 1.5
+end
+
 local function makePad(player: Player, pads: Folder, origin: CFrame, piece: BuildCatalog.Piece)
 	local position = padPosition(piece)
 	if position == nil then
@@ -195,9 +206,20 @@ local function makePad(player: Player, pads: Folder, origin: CFrame, piece: Buil
 	price.Text = NumberFormat.cash(piece.cost)
 	price.Parent = billboard
 
+	-- Se o botão novo nasce embaixo do jogador (no lugar do que ele acabou de comprar), só vale depois de
+	-- ele sair de cima. Sem isso, quem fica parado compra várias coisas seguidas sem querer.
+	local armed = not standingOn(player, pad)
+	if not armed then
+		task.spawn(function()
+			while pad.Parent ~= nil and standingOn(player, pad) do
+				task.wait(0.3)
+			end
+			armed = true
+		end)
+	end
 	pad.Touched:Connect(function(hit)
 		local character = hit:FindFirstAncestorOfClass("Model")
-		if character and Players:GetPlayerFromCharacter(character) == player then
+		if armed and character and Players:GetPlayerFromCharacter(character) == player then
 			tryBuy(player, piece.id)
 		end
 	end)

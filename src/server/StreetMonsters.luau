@@ -467,7 +467,7 @@ function StreetMonsters.start()
 		-- Começa com alguns já andando, para a rua não estar vazia quando o primeiro jogador chega.
 		local length = Layout.DRAIN_X - Layout.RIFT_X
 		for index = 1, 6 do
-			spawnOne(Layout.RIFT_X + length * (index - 0.5) / 7)
+			spawnOne(Layout.RIFT_X + length * (index - 0.5) / 7, 2.5) -- sorte extra: menos Gloop repetido
 		end
 		while true do
 			task.wait(spawnInterval())
