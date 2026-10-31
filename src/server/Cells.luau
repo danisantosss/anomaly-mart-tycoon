@@ -15,6 +15,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local AnomalyLooks = require(script.Parent.AnomalyLooks)
 local CustomerModel = require(script.Parent.CustomerModel)
 local Models = require(script.Parent.Monsters.Models)
+local MonsterPowers = require(script.Parent.MonsterPowers)
 local Data = require(script.Parent.Data)
 local Economy = require(script.Parent.Economy)
 local Plots = require(script.Parent.Plots)
@@ -41,10 +42,11 @@ function Cells.capacity(player: Player): number
 	return math.min(cells, Street.MAX_CELLS)
 end
 
--- Renda das máquinas da loja (vending, café, arcade...), que cai no cofre junto com a das celas.
+-- Renda das máquinas da loja (vending, café, arcade...), que cai no cofre junto com a das celas. Static
+-- Jelly na cela aumenta.
 function Cells.passiveIncome(player: Player): number
 	local data = Data.get(player)
-	return if data then Builds.sum(data.Builds, "passive") else 0
+	return if data then Builds.sum(data.Builds, "passive") * MonsterPowers.passiveMultiplier(player) else 0
 end
 
 function Cells.count(player: Player): number
@@ -118,7 +120,8 @@ local function showOccupant(player: Player, version: number, cell: BasePart, kin
 	local definition = Anomalies.get(kind)
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "CellBillboard"
-	billboard.Size = UDim2.fromOffset(170, 46)
+	local power = definition and definition.power
+	billboard.Size = UDim2.fromOffset(170, if power then 64 else 46)
 	billboard.StudsOffset = Vector3.new(0, cell.Size.Y / 2 + 1, 0)
 	billboard.MaxDistance = 40
 	billboard.Parent = cell
@@ -132,6 +135,17 @@ local function showOccupant(player: Player, version: number, cell: BasePart, kin
 	label.TextColor3 = if definition then Anomalies.RARITY_COLORS[definition.rarity] else Color3.new(1, 1, 1)
 	label.Text = `{Anomalies.fullName(kind, variant)}\n{NumberFormat.cash(Anomalies.income(kind, variant))}/s`
 	label.Parent = billboard
+	if power then
+		-- O poder do monstro (MonsterPowers.luau) numa linha menor embaixo.
+		label.Size = UDim2.fromScale(1, 0.7)
+		local powerLabel = label:Clone()
+		powerLabel.Name = "Power"
+		powerLabel.Position = UDim2.fromScale(0, 0.7)
+		powerLabel.Size = UDim2.fromScale(1, 0.3)
+		powerLabel.TextColor3 = Color3.fromRGB(150, 255, 200)
+		powerLabel.Text = string.gsub(power, "^Power: ", "")
+		powerLabel.Parent = billboard
+	end
 end
 
 -- Botão "Steal" na cela ocupada: aparece para todo mundo menos o dono. O Steal.luau trata o clique.
@@ -140,7 +154,7 @@ local function addStealPrompt(owner: Player, cell: BasePart, index: number)
 	prompt.Name = "StealPrompt"
 	prompt.ActionText = "Steal"
 	prompt.ObjectText = "Cell"
-	prompt.HoldDuration = Config.Steal.HOLD_SECONDS
+	prompt.HoldDuration = Config.Steal.HOLD_SECONDS + MonsterPowers.stealHoldBonus(owner) -- Skull Hound
 	prompt.MaxActivationDistance = 7
 	prompt.RequiresLineOfSight = false
 	prompt:SetAttribute("ExcludeUserId", owner.UserId)
@@ -187,6 +201,7 @@ function Cells.render(player: Player)
 			addStealPrompt(player, cell, index)
 		end
 	end
+	MonsterPowers.refresh(player)
 	updateLeaderstat(player)
 end
 
@@ -204,6 +219,12 @@ function Cells.tryAdd(player: Player, kind: string, variant: string): boolean
 		player:SetAttribute(Anomalies.indexAttribute(kind, variant), true)
 	end
 	Cells.render(player)
+	if kind == "RiftKing" then
+		Remotes.get("Notify"):FireAllClients(
+			`{player.DisplayName} contained a RIFT KING! Everyone on the server earns more!`,
+			Anomalies.RARITY_COLORS.Mythic
+		)
+	end
 	return true
 end
 
@@ -301,6 +322,13 @@ function Cells.start()
 	Plots.onStoreReady(onStoreReady)
 	Players.PlayerRemoving:Connect(function(player)
 		renderVersion[player] = nil
+	end)
+	-- Rift King entrou ou saiu do servidor: a renda de todo mundo muda.
+	MonsterPowers.onServerBonusChanged(function()
+		for _, player in Players:GetPlayers() do
+			Economy.publishMultiplier(player)
+			updateLeaderstat(player)
+		end
 	end)
 	task.spawn(incomeLoop)
 end

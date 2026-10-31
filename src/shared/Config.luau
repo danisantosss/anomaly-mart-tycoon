@@ -274,6 +274,22 @@ Config.StreetMonsters = {
 	ANNOUNCE = { Epic = true, Legendary = true, Mythic = true }, -- avisa o servidor inteiro quando um desses sai
 }
 
+-- Poderes dos monstros da rua quando estão numa cela (server/MonsterPowers.luau, docs/V3.md seção 6).
+-- Cada monstro igual soma o poder de novo, até MAX_STACK (o Mimic Crate vai até MIMIC_MAX_STACK).
+Config.MonsterPowers = {
+	MAX_STACK = 3,
+	MIMIC_MAX_STACK = 5,
+	GLOOP_RESTOCK_SECONDS = 30, -- cada Gloop enche a prateleira mais vazia neste intervalo
+	MIMIC_SHELF_BONUS = 2, -- itens a mais em cada prateleira, por Mimic Crate
+	HOUND_HOLD_SECONDS = 1.5, -- segundos a mais para o ladrão abrir a cela, por Skull Hound
+	SPIDER_CAPTURE_FASTER = 0.15, -- captura de anomalia disfarçada mais rápida, por Eye Spider
+	TV_PRICE_BONUS = 0.1, -- preço dos itens, por TV Head
+	JELLY_PASSIVE_BONUS = 0.2, -- renda das máquinas, por Static Jelly
+	MOTH_NIGHT_CUSTOMERS = 0.25, -- clientes de madrugada, por Moth Monarch
+	TALL_ONE_THIEF_SLOW = 0.7, -- velocidade do ladrão vezes isto (não soma, basta ter um)
+	RIFT_KING_SERVER_BONUS = 0.1, -- renda de todo mundo no servidor, por Rift King no servidor inteiro
+}
+
 -- Ajudas para testar no Studio. Não têm efeito no jogo publicado.
 Config.Debug = {
 	-- Renda extra por segundo no cofre, só no Studio. Útil para testar compras sem jogar muito.

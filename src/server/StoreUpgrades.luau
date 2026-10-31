@@ -12,6 +12,7 @@ local Upgrades = require(ReplicatedStorage.Shared.Upgrades)
 local Analytics = require(script.Parent.Analytics)
 local Data = require(script.Parent.Data)
 local Economy = require(script.Parent.Economy)
+local MonsterPowers = require(script.Parent.MonsterPowers)
 local Plots = require(script.Parent.Plots)
 local Shelves = require(script.Parent.Shelves)
 
@@ -34,7 +35,8 @@ end
 function StoreUpgrades.captureHoldSeconds(player: Player): number
 	local hold = Config.Anomalies.CAPTURE_HOLD_SECONDS
 		- StoreUpgrades.level(player, "Flashlight") * Effects.FLASHLIGHT_HOLD_PER_LEVEL
-	return math.max(hold, Effects.FLASHLIGHT_MIN_HOLD)
+	-- Eye Spider na cela: captura mais rápida, mas nunca abaixo do mínimo.
+	return math.max(hold * MonsterPowers.captureHoldMultiplier(player), Effects.FLASHLIGHT_MIN_HOLD)
 end
 
 local function owned(player: Player): { [string]: boolean }
@@ -47,16 +49,20 @@ function StoreUpgrades.chargeBatch(player: Player): number
 	return 1 + StoreUpgrades.level(player, "FastRegister") + Builds.sum(owned(player), "chargeBatch")
 end
 
--- Multiplica a chegada de clientes (1.1 = 10% a mais): upgrade de propaganda + decoração da loja.
+-- Multiplica a chegada de clientes (1.1 = 10% a mais): upgrade de propaganda + decoração da loja + Moth
+-- Monarch na cela (só de madrugada).
 function StoreUpgrades.customerRate(player: Player): number
 	return 1
 		+ StoreUpgrades.level(player, "Advertising") * Effects.ADVERTISING_CUSTOMERS_PER_LEVEL
 		+ Builds.sum(owned(player), "customers")
+		+ MonsterPowers.customerBonus(player)
 end
 
--- Multiplica o preço dos itens vendidos (Premium Products).
+-- Multiplica o preço dos itens vendidos (Premium Products + TV Head na cela).
 function StoreUpgrades.priceMultiplier(player: Player): number
-	return 1 + StoreUpgrades.level(player, "PremiumProducts") * Effects.PREMIUM_PRICE_PER_LEVEL
+	return 1
+		+ StoreUpgrades.level(player, "PremiumProducts") * Effects.PREMIUM_PRICE_PER_LEVEL
+		+ MonsterPowers.priceBonus(player)
 end
 
 function StoreUpgrades.doorLockSeconds(player: Player): number

@@ -13,6 +13,7 @@ local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Analytics = require(script.Parent.Analytics)
 local Data = require(script.Parent.Data)
+local MonsterPowers = require(script.Parent.MonsterPowers)
 local Passes = require(script.Parent.Passes)
 local Plots = require(script.Parent.Plots)
 
@@ -112,8 +113,10 @@ end
 -- Multiplicador total de renda do jogador. Tudo se multiplica (docs/V2.md, seção 5):
 --   gamepass 2x Cash × Franquias (+50% cada) × Index (+2% por entrada) × amigos (+10% cada, até 30%)
 --   × boost temporário (2x, de presentes, códigos e recompensa diária)
+--   × Rift King (+10% para todo mundo no servidor, por Rift King preso em qualquer loja)
 function Economy.incomeMultiplier(player: Player): number
 	local multiplier = if Passes.has(player, "DoubleCash") then 2 else 1
+	multiplier *= MonsterPowers.serverMultiplier()
 	local data = Data.get(player)
 	if data then
 		multiplier *= 1 + data.Franchise * Config.Franchise.INCOME_BONUS

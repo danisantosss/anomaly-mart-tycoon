@@ -32,18 +32,33 @@ function IndexUi.start()
 	local cells: { () -> () } = {}
 
 	for order, definition in Anomalies.LIST do
-		local row = Ui.row(window, order, 78)
-		local name =
-			Ui.text(row, definition.displayName, UDim2.fromScale(0.24, 0.4), UDim2.fromScale(0.02, 0.1))
+		-- Monstros da rua ganham uma linha a mais embaixo, com o poder que dão na cela.
+		local power = definition.power
+		local top = if power then 0.78 else 1 -- parte da linha usada pelo nome e pelas casas
+		local row = Ui.row(window, order, if power then 100 else 78)
+		local name = Ui.text(
+			row,
+			definition.displayName,
+			UDim2.fromScale(0.24, 0.4 * top),
+			UDim2.fromScale(0.02, 0.1 * top)
+		)
 		name.TextColor3 = Anomalies.RARITY_COLORS[definition.rarity]
-		local rarity =
-			Ui.text(row, definition.rarity, UDim2.fromScale(0.24, 0.3), UDim2.fromScale(0.02, 0.55))
+		local rarity = Ui.text(
+			row,
+			definition.rarity,
+			UDim2.fromScale(0.24, 0.3 * top),
+			UDim2.fromScale(0.02, 0.55 * top)
+		)
 		rarity.TextColor3 = Ui.MUTED
+		if power then
+			local powerLabel = Ui.text(row, power, UDim2.fromScale(0.96, 0.18), UDim2.fromScale(0.02, 0.79))
+			powerLabel.TextColor3 = Color3.fromRGB(150, 255, 200)
+		end
 
 		for column, variant in Anomalies.VARIANTS do
 			local slot = Instance.new("Frame")
-			slot.Size = UDim2.fromScale(0.14, 0.8)
-			slot.Position = UDim2.fromScale(0.27 + (column - 1) * 0.146, 0.1)
+			slot.Size = UDim2.fromScale(0.14, 0.8 * top)
+			slot.Position = UDim2.fromScale(0.27 + (column - 1) * 0.146, 0.1 * top)
 			slot.BackgroundColor3 = Color3.fromRGB(30, 34, 44)
 			slot.Parent = row
 			Ui.round(slot, 0.15)
