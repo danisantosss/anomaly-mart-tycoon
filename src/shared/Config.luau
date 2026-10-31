@@ -66,6 +66,19 @@ Config.Anomalies = {
 	ESCAPE_AFTER_SECONDS = 30, -- anomalia ignorada esse tempo no caixa foge para o vizinho
 }
 
+-- Roubo e porta de aço (docs/V1.md, seção 6).
+Config.Steal = {
+	HOLD_SECONDS = 2, -- segurar E na cela do outro
+	CARRY_SPEED = 10, -- velocidade de quem carrega uma anomalia roubada
+	NORMAL_SPEED = 16,
+	CATCH_DISTANCE = 5, -- o dono encostou no ladrão: a anomalia volta
+}
+
+Config.Door = {
+	LOCK_SECONDS = 60,
+	COOLDOWN_SECONDS = 120, -- contado a partir do momento em que trancou
+}
+
 -- Ajudas para testar no Studio. Não têm efeito no jogo publicado.
 Config.Debug = {
 	-- Renda extra por segundo no cofre, só no Studio. Útil para testar compras sem jogar muito.

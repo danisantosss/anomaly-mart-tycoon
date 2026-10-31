@@ -38,6 +38,15 @@ Layout.STORE_FRONT_Z = -Street.PLOT_SIZE / 2 + Street.SIDEWALK_DEPTH
 Layout.STORE_BACK_Z = Layout.STORE_FRONT_Z + Street.STORE_DEPTH
 Layout.PARTITION_Z = Layout.STORE_BACK_Z - Street.BACKROOM_DEPTH
 
+-- `position` (no mundo) está dentro da sala dos fundos da loja do terreno `origin`?
+function Layout.isInBackroom(origin: CFrame, position: Vector3): boolean
+	local localPos = origin:PointToObjectSpace(position)
+	return math.abs(localPos.X) < Street.STORE_WIDTH / 2
+		and localPos.Z > Layout.PARTITION_Z
+		and localPos.Z < Layout.STORE_BACK_Z
+		and localPos.Y < Street.STORE_HEIGHT + 5
+end
+
 -- Centro (no chão) da cela número `index`, no espaço local do terreno.
 -- Celas 1 a 6: fileira encostada na parede do fundo.
 -- Celas 7 a 12: fileira ao lado da divisória, pulando o vão da porta dos fundos.
