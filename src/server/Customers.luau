@@ -103,9 +103,30 @@ local function point(state: StoreState, x: number, z: number): Vector3
 	return (state.origin * CFrame.new(x, 3, z)).Position
 end
 
-local function sidewalkPoint(state: StoreState): Vector3
-	local side = if random:NextNumber() < 0.5 then -1 else 1
-	return point(state, side * random:NextNumber(14, 24), Layout.STORE_FRONT_Z - 5)
+-- Túnel do metrô mais perto da loja (de onde o cliente sai e para onde volta).
+local function nearestTunnel(state: StoreState): CFrame
+	local best: CFrame = Layout.tunnels()[1]
+	local bestDistance = math.huge
+	for _, mouth in Layout.tunnels() do
+		local distance = (mouth.Position - state.origin.Position).Magnitude
+		if distance < bestDistance then
+			best, bestDistance = mouth, distance
+		end
+	end
+	return best
+end
+
+-- Dentro do túnel (no escuro) e logo na saída dele.
+local function tunnelInside(state: StoreState): Vector3
+	return (nearestTunnel(state) * CFrame.new(0, 3, 7)).Position
+end
+
+local function tunnelExit(state: StoreState): Vector3
+	return (nearestTunnel(state) * CFrame.new(random:NextNumber(-3, 3), 3, -4)).Position
+end
+
+local function setSpeed(customer: Customer, onStreet: boolean)
+	customer.humanoid.WalkSpeed = if onStreet then Settings.STREET_WALK_SPEED else Settings.WALK_SPEED
 end
 
 local function doorOutside(state: StoreState): Vector3
@@ -150,7 +171,7 @@ end
 -- Lugar `slot` da fila (0 = na frente do caixa). A fila cresce em direção à porta.
 local function queueSpot(state: StoreState, slot: number): Vector3
 	local localPos = state.origin:PointToObjectSpace(state.counter.Position)
-	return point(state, localPos.X + slot * 2.5, localPos.Z - state.counter.Size.Z / 2 - 1.5)
+	return point(state, localPos.X + slot * 3.2, localPos.Z - state.counter.Size.Z / 2 - 1.5)
 end
 
 -- Anda em linha reta até `position`, desistindo depois de `timeout` segundos.
@@ -229,9 +250,11 @@ local function leave(state: StoreState, customer: Customer)
 	removeFrom(state.queue, customer)
 	updateQueue(state)
 
-	local _ = walk(customer, doorInside(state))
-		and walk(customer, doorOutside(state))
-		and walk(customer, sidewalkPoint(state))
+	-- Sai da loja e volta para o túnel do metrô.
+	if walk(customer, doorInside(state)) and walk(customer, doorOutside(state)) then
+		setSpeed(customer, true)
+		local _ = walk(customer, tunnelExit(state)) and walk(customer, tunnelInside(state))
+	end
 
 	if customer.state == "Leaving" then
 		vanish(state, customer)
@@ -460,7 +483,7 @@ local function escape(state: StoreState, customer: Customer)
 	customer.escapes += 1
 	customer.state = "Shopping"
 	customer.model.Parent = neighbor.folder
-	customer.model:PivotTo(CFrame.new(sidewalkPoint(neighbor)))
+	setSpeed(customer, true) -- atravessa a rua correndo até a loja vizinha
 	table.insert(neighbor.customers, customer)
 	addCapturePrompt(neighbor, customer)
 	tell(
@@ -473,7 +496,11 @@ local function escape(state: StoreState, customer: Customer)
 end
 
 function shop(state: StoreState, customer: Customer)
-	if not (walk(customer, doorOutside(state)) and walk(customer, doorInside(state))) then
+	if not walk(customer, doorOutside(state)) then
+		return
+	end
+	setSpeed(customer, false)
+	if not walk(customer, doorInside(state)) then
 		return
 	end
 
@@ -570,7 +597,9 @@ local function spawnCustomer(state: StoreState)
 		model:Destroy()
 		return
 	end
-	model:PivotTo(CFrame.new(sidewalkPoint(state)))
+	-- Sai do túnel do metrô mais perto e anda até a loja.
+	local mouth = nearestTunnel(state)
+	model:PivotTo(CFrame.lookAt(tunnelInside(state), mouth.Position + Vector3.new(0, 3, 0)))
 	model.Parent = state.folder
 	CustomerModel.animate(model)
 
@@ -592,6 +621,7 @@ local function spawnCustomer(state: StoreState)
 		tutorial = tutorial,
 	}
 	table.insert(state.customers, customer)
+	setSpeed(customer, true)
 	addCapturePrompt(state, customer)
 	if kind ~= HUMAN then
 		Analytics.step(state.owner, "SawAnomaly")

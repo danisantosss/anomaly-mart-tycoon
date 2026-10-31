@@ -20,6 +20,7 @@ local Rewards = require(script.Rewards)
 local Shelves = require(script.Shelves)
 local Social = require(script.Social)
 local Steal = require(script.Steal)
+local StreetMonsters = require(script.StreetMonsters)
 local StoreUpgrades = require(script.StoreUpgrades)
 
 Plots.start() -- primeiro: os outros sistemas usam a loja do jogador
@@ -33,6 +34,7 @@ Door.start()
 Builds.start() -- reconstrói o que o jogador comprou: depois de Shelves, Cells, StoreUpgrades e Door
 Customers.start()
 Steal.start()
+StreetMonsters.start()
 Franchise.start()
 Rewards.start()
 Social.start()

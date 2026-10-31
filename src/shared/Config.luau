@@ -28,7 +28,7 @@ Config.Street = {
 	SHELF_SIZE = Vector3.new(3, 6, 8),
 	FRIDGE_SIZE = Vector3.new(5, 7, 2.5),
 	MAX_CELLS = 12, -- 6 encostadas na parede do fundo + 6 ao lado da divisória
-	CELL_SIZE = Vector3.new(3, 7, 3),
+	CELL_SIZE = Vector3.new(5, 8, 4), -- cabe um monstro da rua encolhido
 }
 
 -- Dinheiro (docs/V1.md, seção 3).
@@ -47,13 +47,14 @@ Config.Cycle = {
 Config.Customers = {
 	DAY_INTERVAL = 6, -- segundos entre um cliente e outro, de dia
 	NIGHT_INTERVAL = 15,
-	MAX_IN_STORE = 6,
-	MAX_IN_SERVER = 32, -- teto de NPCs somando todas as lojas (R15 pesa no celular)
+	MAX_IN_STORE = 8, -- conta também quem ainda está andando do metrô até a loja
+	MAX_IN_SERVER = 40, -- teto de NPCs somando todas as lojas (R15 pesa no celular)
 	ITEM_PRICE = 5,
 	NIGHT_PRICE_MULTIPLIER = 3,
 	MIN_ITEMS = 1,
 	MAX_ITEMS = 3,
 	WALK_SPEED = 10,
+	STREET_WALK_SPEED = 16, -- na rua, entre o túnel do metrô e a loja, andam mais rápido
 	CHECKOUT_PATIENCE = 30, -- segundos esperando no caixa antes de desistir e ir embora
 	SHELF_CAPACITY = 10, -- prateleira comum; geladeiras e balcão de comida têm a deles (shared/Builds.luau)
 	RESTOCK_HOLD_SECONDS = 1,
@@ -175,6 +176,102 @@ Config.RedMoon = {
 Config.Leaderboard = {
 	UPDATE_SECONDS = 120,
 	SIZE = 10,
+}
+
+-- Itens do catálogo do Roblox para os clientes (todos feitos pelo Roblox; testados no Studio em 2026-10-31 com
+-- CreateHumanoidModelFromDescription). Lista vazia = só os acessórios feitos de Parts (server/CustomerModel.luau).
+Config.CustomerLooks = {
+	-- Cabeça clássica: sem ela o Roblox usa a cabeça nova (MeshPart) e ignora o rosto (Face).
+	Heads = { 2432102561, 6340213, 6340101, 6340227 },
+	Faces = {
+		144075659,
+		209995366,
+		7074764,
+		7699174,
+		20418658,
+		12145366,
+		86487700,
+		86487766,
+		7074786,
+		7317793,
+		20722130,
+	},
+	Hair = {
+		376548738,
+		376524487,
+		376526888,
+		376527350,
+		451221329,
+		451220849,
+		63690008,
+		2956239660,
+		1103003368,
+		3814474927,
+		3814476174,
+		9243992729,
+		9244021842,
+		9174355709,
+		9174354743,
+		9244038785,
+		7193442167,
+		9244095135,
+		7193448258,
+		7193450455,
+	},
+	Hats = {
+		607702162,
+		417457461,
+		48474313,
+		2646473721,
+		607700713,
+		3403874988,
+		4047554959,
+		125886373,
+		69937521,
+	},
+	Glasses = { 376526673, 376527500, 11884330, 62690529, 125369932, 25931812, 158066137 },
+	Shirts = {
+		607785314,
+		3670737444,
+		398633584,
+		144076358,
+		382538059,
+		398635081,
+		398634295,
+		4047886060,
+		4047884939,
+		144076436,
+		382537702,
+		382537085,
+	},
+	Pants = {
+		398633812,
+		398635338,
+		398634487,
+		144076760,
+		382538503,
+		382537569,
+		382537950,
+		382537806,
+		129459077,
+		129458426,
+	},
+}
+
+-- Monstros da rua (docs/V3.md, seção 3): saem da Fenda e atravessam a Avenida. Qualquer jogador captura pagando.
+Config.StreetMonsters = {
+	SPAWN_SECONDS_DAY = 6, -- um monstro novo a cada X segundos
+	SPAWN_SECONDS_NIGHT = 4,
+	SPAWN_SECONDS_RED_MOON = 2.5,
+	MAX_ON_STREET = 14,
+	WALK_SPEED = 5,
+	DELIVERY_SPEED = 16, -- depois de capturado, corre para a sala dos fundos de quem pagou
+	MANHOLE_CHANCE = 0.35, -- chance de sair de um bueiro no meio da rua em vez da Fenda
+	LUCK_NIGHT = 1.6, -- de madrugada os raros ficam mais prováveis...
+	LUCK_RED_MOON = 3, -- ...e na Lua Vermelha muito mais
+	VARIANT_LUCK_NIGHT = 1.5,
+	CAPTURE_HOLD_SECONDS = 0.6,
+	ANNOUNCE = { Epic = true, Legendary = true, Mythic = true }, -- avisa o servidor inteiro quando um desses sai
 }
 
 -- Ajudas para testar no Studio. Não têm efeito no jogo publicado.
