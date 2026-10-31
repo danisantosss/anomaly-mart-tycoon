@@ -50,6 +50,7 @@ export type Customer = {
 	items: number,
 	state: State,
 	escapes: number,
+	tutorial: boolean, -- primeira anomalia do jogador novo: dá para capturar de dia e não foge
 }
 
 type StoreState = {
@@ -62,6 +63,9 @@ type StoreState = {
 	queue: { Customer },
 	nextSpawnAt: number,
 	penaltyUntil: number,
+	sales: number, -- clientes humanos cobrados nesta sessão
+	graceLeft: number, -- erros que ainda saem de graça nesta sessão (Config.Anomalies.MISTAKE_GRACE)
+	tutorialDone: boolean,
 }
 
 local Customers = {}
@@ -69,6 +73,11 @@ local Customers = {}
 local stores: { [Player]: StoreState } = {}
 local random = Random.new()
 local notify: RemoteEvent
+
+local function clueOf(customer: Customer): string
+	local definition = Anomalies.get(customer.kind)
+	return if definition then definition.clue else ""
+end
 
 local function isAnomaly(customer: Customer): boolean
 	return customer.kind ~= HUMAN
@@ -171,8 +180,23 @@ local function leave(state: StoreState, customer: Customer)
 	end
 end
 
-local function penalize(state: StoreState)
+-- Gasta um erro de graça, se ainda tiver. Devolve true se o erro deve ser perdoado.
+local function forgive(state: StoreState): boolean
+	if state.graceLeft > 0 then
+		state.graceLeft -= 1
+		return true
+	end
+	return false
+end
+
+-- Humano recusado ou assustado: menos clientes por um tempo (ou só um aviso, nos primeiros erros).
+local function wrongHuman(state: StoreState, text: string)
+	if forgive(state) then
+		tell(state.owner, `{text} Careful next time!`, INFO)
+		return
+	end
 	state.penaltyUntil = os.clock() + AnomalySettings.REFUSED_HUMAN_PENALTY_SECONDS
+	tell(state.owner, `{text} Fewer people will come for a bit.`, BAD)
 end
 
 local function floatingText(parent: BasePart, text: string, color: Color3)
@@ -219,18 +243,31 @@ local function chargeOne(state: StoreState): boolean
 	end
 
 	if isAnomaly(customer) then
-		local lost = Economy.takeFromSafe(state.owner, AnomalySettings.BAD_SERVE_SAFE_LOSS)
 		flickerLights(state)
-		floatingText(state.counter, "-" .. NumberFormat.cash(lost), BAD)
-		tell(
-			state.owner,
-			`That was a {nameOf(customer)}! It took {NumberFormat.cash(lost)} from your safe.`,
-			BAD
-		)
+		if customer.tutorial or forgive(state) then
+			tell(
+				state.owner,
+				`That was a {nameOf(customer)}! {clueOf(customer)} Refuse or capture it next time.`,
+				INFO
+			)
+		else
+			local maxLoss =
+				math.max(100, Cells.totalIncome(state.owner) * AnomalySettings.BAD_SERVE_MAX_LOSS_SECONDS)
+			local lost = Economy.takeFromSafe(state.owner, AnomalySettings.BAD_SERVE_SAFE_LOSS, maxLoss)
+			floatingText(state.counter, "-" .. NumberFormat.cash(lost), BAD)
+			tell(
+				state.owner,
+				`That was a {nameOf(customer)}! It took {NumberFormat.cash(lost)} from your safe. {clueOf(
+					customer
+				)}`,
+				BAD
+			)
+		end
 	else
 		local multiplier = if DayNight.isNight() then Settings.NIGHT_PRICE_MULTIPLIER else 1
 		local amount = Economy.addToSafe(state.owner, customer.items * Settings.ITEM_PRICE * multiplier)
 		floatingText(state.counter, "+" .. NumberFormat.cash(amount), GOOD)
+		state.sales += 1
 	end
 
 	task.spawn(leave, state, customer)
@@ -253,10 +290,9 @@ local function refuse(state: StoreState)
 	end
 
 	if isAnomaly(customer) then
-		tell(state.owner, `Good call! That was a {nameOf(customer)}.`, GOOD)
+		tell(state.owner, `Good call! That was a {nameOf(customer)}. {clueOf(customer)}`, GOOD)
 	else
-		penalize(state)
-		tell(state.owner, "That was a real customer... fewer people will come for a while.", BAD)
+		wrongHuman(state, "That was a real customer...")
 	end
 
 	task.spawn(leave, state, customer)
@@ -268,8 +304,7 @@ local function capture(state: StoreState, customer: Customer)
 	end
 
 	if not isAnomaly(customer) then
-		penalize(state)
-		tell(state.owner, "You scared a real customer! Fewer people will come for a while.", BAD)
+		wrongHuman(state, "You scared a real customer!")
 		task.spawn(leave, state, customer)
 		return
 	end
@@ -284,7 +319,7 @@ local function capture(state: StoreState, customer: Customer)
 end
 
 -- Botão "Capture" no próprio cliente, só para o dono da loja onde ele está. Só existe em quem chega de
--- madrugada (de dia não aparecem anomalias).
+-- madrugada (de dia não aparecem anomalias), menos a anomalia do tutorial.
 local function addCapturePrompt(state: StoreState, customer: Customer)
 	local root = customer.model.PrimaryPart
 	if root == nil then
@@ -294,7 +329,7 @@ local function addCapturePrompt(state: StoreState, customer: Customer)
 	if old then
 		old:Destroy()
 	end
-	if not DayNight.isNight() then
+	if not (DayNight.isNight() or customer.tutorial) then
 		return
 	end
 
@@ -310,7 +345,7 @@ local function addCapturePrompt(state: StoreState, customer: Customer)
 	prompt.Parent = root
 
 	prompt.Triggered:Connect(function(who)
-		if who == state.owner and DayNight.isNight() then
+		if who == state.owner and (DayNight.isNight() or customer.tutorial) then
 			capture(state, customer)
 		end
 	end)
@@ -400,7 +435,7 @@ function shop(state: StoreState, customer: Customer)
 	local waitedSince = os.clock()
 	while customer.state == "Queued" and customer.model.Parent ~= nil do
 		if os.clock() - waitedSince > patience then
-			if isAnomaly(customer) and customer.escapes == 0 then
+			if isAnomaly(customer) and customer.escapes == 0 and not customer.tutorial then
 				escape(state, customer)
 			else
 				leave(state, customer)
@@ -416,10 +451,27 @@ local function anomalyChance(): number
 	return if RunService:IsStudio() and studio > 0 then studio else AnomalySettings.NIGHT_CHANCE
 end
 
+-- Jogador novo (sem nenhuma cela) que já cobrou alguns clientes de dia: hora da primeira anomalia.
+local function wantsTutorialAnomaly(state: StoreState): boolean
+	if state.tutorialDone or DayNight.isNight() then
+		return false
+	end
+	if Cells.count(state.owner) > 0 then
+		state.tutorialDone = true
+		return false
+	end
+	return state.sales >= Config.Tutorial.SALES_BEFORE_ANOMALY
+end
+
 local function spawnCustomer(state: StoreState)
 	local kind = HUMAN
 	local variant = "Normal"
-	if DayNight.isNight() and random:NextNumber() < anomalyChance() then
+	local tutorial = false
+	if wantsTutorialAnomaly(state) then
+		kind = Config.Tutorial.ANOMALY
+		tutorial = true
+		state.tutorialDone = true
+	elseif DayNight.isNight() and random:NextNumber() < anomalyChance() then
 		kind = Anomalies.pickDefinition(random).id
 		variant = Anomalies.pickVariant(random).id
 	end
@@ -455,10 +507,24 @@ local function spawnCustomer(state: StoreState)
 		items = random:NextInteger(Settings.MIN_ITEMS, Settings.MAX_ITEMS),
 		state = "Shopping",
 		escapes = 0,
+		tutorial = tutorial,
 	}
 	table.insert(state.customers, customer)
 	addCapturePrompt(state, customer)
+	if tutorial then
+		tell(
+			state.owner,
+			"A strange customer just walked in... look closely. Hold C on it to capture it!",
+			INFO
+		)
+	end
 	shop(state, customer)
+
+	-- Se a do tutorial foi embora sem ser capturada, outra aparece depois de mais algumas vendas.
+	if tutorial and Cells.count(state.owner) == 0 then
+		state.tutorialDone = false
+		state.sales = 0
+	end
 end
 
 local function makeCounterPrompt(
@@ -502,6 +568,9 @@ local function setupStore(player: Player)
 		queue = {},
 		nextSpawnAt = os.clock() + 2,
 		penaltyUntil = 0,
+		sales = 0,
+		graceLeft = AnomalySettings.MISTAKE_GRACE,
+		tutorialDone = false,
 	}
 	stores[player] = state
 
@@ -526,10 +595,19 @@ local function spawnLoop()
 	while true do
 		task.wait(0.5)
 		local now = os.clock()
+		local total = 0
+		for _, state in stores do
+			total += #state.customers
+		end
 		for owner, state in stores do
 			if state.store.Parent == nil then
 				stores[owner] = nil
-			elseif now >= state.nextSpawnAt and #state.customers < Settings.MAX_IN_STORE then
+			elseif
+				now >= state.nextSpawnAt
+				and #state.customers < Settings.MAX_IN_STORE
+				and total < Settings.MAX_IN_SERVER
+			then
+				total += 1
 				local interval = if DayNight.isNight() then Settings.NIGHT_INTERVAL else Settings.DAY_INTERVAL
 				if now < state.penaltyUntil then
 					interval *= 2

@@ -29,6 +29,7 @@ local function refresh(player: Player)
 	end
 
 	player:SetAttribute("Cash", data.Cash)
+	player:SetAttribute("SafeBalance", math.floor(data.SafeBalance))
 
 	local leaderstats = player:FindFirstChild("leaderstats")
 	local cashStat = leaderstats and leaderstats:FindFirstChild("Cash")
@@ -119,13 +120,13 @@ function Economy.addToSafe(player: Player, amount: number): number
 	return amount
 end
 
--- Tira uma fração do cofre (ex.: anomalia atendida leva 10%). Devolve quanto saiu.
-function Economy.takeFromSafe(player: Player, fraction: number): number
+-- Tira uma fração do cofre (ex.: anomalia atendida leva 10%), no máximo `maxAmount`. Devolve quanto saiu.
+function Economy.takeFromSafe(player: Player, fraction: number, maxAmount: number?): number
 	local data = Data.get(player)
 	if data == nil then
 		return 0
 	end
-	local amount = data.SafeBalance * math.clamp(fraction, 0, 1)
+	local amount = math.min(data.SafeBalance * math.clamp(fraction, 0, 1), maxAmount or math.huge)
 	data.SafeBalance -= amount
 	refresh(player)
 	return amount
