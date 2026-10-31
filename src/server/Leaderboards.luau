@@ -21,11 +21,13 @@ local rows: { TextLabel } = {}
 local title: TextLabel
 
 local function buildBoard()
-	local x = Layout.STREET_LENGTH / 2 + 18
+	-- Na pracinha do lado do Ralo de Contenção, virado para a Avenida (fora da Faixa da Fenda).
+	local x = Layout.DRAIN_X - 8
+	local z = 40
 	local board = Parts.make({
 		name = "Leaderboard",
 		size = Vector3.new(16, 18, 1),
-		cframe = CFrame.lookAt(Vector3.new(x, 11, 0), Vector3.new(0, 11, 0)), -- frente virada para a rua
+		cframe = CFrame.lookAt(Vector3.new(x, 11, z), Vector3.new(0, 11, z)), -- frente virada para a rua
 		color = Color3.fromRGB(20, 22, 30),
 		parent = workspace,
 	})
@@ -33,7 +35,7 @@ local function buildBoard()
 		Parts.make({
 			name = "LeaderboardLeg",
 			size = Vector3.new(0.8, 4, 0.8),
-			cframe = CFrame.new(x, 1, dz),
+			cframe = CFrame.new(x, 1, z + dz),
 			color = Color3.fromRGB(60, 64, 72),
 			parent = board,
 		})

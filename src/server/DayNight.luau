@@ -61,9 +61,20 @@ local function duration(of: Phase): number
 	return if studio and custom > 0 then custom else Config.Cycle.NIGHT_SECONDS
 end
 
+-- Cores da Atmosphere (criada pelo StreetBuilder). Com Atmosphere o Roblox ignora o Fog do Lighting.
+local ATMOSPHERE: { [string]: { [string]: any } } = {
+	Day = { Density = 0.28, Color = Color3.fromRGB(205, 215, 230), Decay = Color3.fromRGB(120, 130, 150) },
+	Night = { Density = 0.36, Color = Color3.fromRGB(45, 45, 80), Decay = Color3.fromRGB(25, 20, 50) },
+	RedMoon = { Density = 0.42, Color = Color3.fromRGB(130, 25, 35), Decay = Color3.fromRGB(70, 0, 15) },
+}
+
 local function applyLook(of: Phase)
 	local info = TweenInfo.new(Config.Cycle.TRANSITION_SECONDS, Enum.EasingStyle.Sine)
 	TweenService:Create(Lighting, info, if redMoon then RED_MOON_LOOK else LOOKS[of]):Play()
+	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+	if atmosphere then
+		TweenService:Create(atmosphere, info, ATMOSPHERE[if redMoon then "RedMoon" else of]):Play()
+	end
 end
 
 local function redMoonChance(): number

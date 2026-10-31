@@ -14,6 +14,7 @@ local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local AnomalyLooks = require(script.Parent.AnomalyLooks)
 local CustomerModel = require(script.Parent.CustomerModel)
+local Models = require(script.Parent.Monsters.Models)
 local Data = require(script.Parent.Data)
 local Economy = require(script.Parent.Economy)
 local Plots = require(script.Parent.Plots)
@@ -80,18 +81,31 @@ local function clearDisplay(cell: BasePart)
 	end
 end
 
+-- Monstro da rua: diminui até caber na cela (os grandes ficam "comprimidos" lá dentro).
+local function buildMonster(cell: BasePart, kind: string, variant: string): Model
+	local model = Models.build(kind, variant, false)
+	local _, size = model:GetBoundingBox()
+	local fit = math.min((cell.Size.Y - 0.6) / size.Y, (cell.Size.X - 0.4) / math.max(size.X, size.Z))
+	model:ScaleTo(model:GetScale() * math.min(1, fit))
+	return model
+end
+
 local function showOccupant(player: Player, version: number, cell: BasePart, kind: string, variant: string)
-	local model = CustomerModel.build()
+	local isMonster = Models.has(kind)
+	local model = if isMonster then buildMonster(cell, kind, variant) else CustomerModel.build()
 	if renderVersion[player] ~= version or cell.Parent == nil then
 		model:Destroy()
 		return
 	end
 	model.Name = "Occupant"
-	AnomalyLooks.apply(model, kind, variant)
-	model:ScaleTo(model:GetScale() * DISPLAY_SCALE)
+	if not isMonster then
+		AnomalyLooks.apply(model, kind, variant)
+		model:ScaleTo(model:GetScale() * DISPLAY_SCALE)
+	end
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
-			descendant.Anchored = true
+			-- Monstro: só a raiz fica ancorada, para o cliente conseguir mexer as juntas (animação).
+			descendant.Anchored = not isMonster or descendant == model.PrimaryPart
 			descendant.CanCollide = false
 			descendant.CanQuery = false
 		end

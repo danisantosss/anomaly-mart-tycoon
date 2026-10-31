@@ -18,6 +18,17 @@ local PLOTS_PER_SIDE = Street.PLOT_COUNT // 2
 -- Comprimento total da rua, usado para o asfalto e as calçadas.
 Layout.STREET_LENGTH = PLOTS_PER_SIDE * (Street.PLOT_SIZE + Street.PLOT_GAP) + Street.PLOT_GAP
 
+-- Faixa da Fenda: o caminho no meio da rua por onde os monstros andam, da Fenda (ponta -X) até o Ralo de
+-- Contenção (ponta +X). Docs/V3.md, seção 2.
+Layout.LANE_HALF_WIDTH = 5
+Layout.RIFT_X = -(Layout.STREET_LENGTH / 2 + 34)
+Layout.DRAIN_X = Layout.STREET_LENGTH / 2 + 34
+
+-- Meio da sala dos fundos, no espaço local do terreno (para onde vai o monstro capturado na rua).
+function Layout.backroomCenter(): Vector3
+	return Vector3.new(0, 0, (Layout.PARTITION_Z + Layout.STORE_BACK_Z) / 2)
+end
+
 function Layout.plotCFrame(index: number): CFrame
 	assert(index >= 1 and index <= Street.PLOT_COUNT, `plot inválido: {index}`)
 

@@ -28,7 +28,7 @@ Config.Street = {
 	SHELF_SIZE = Vector3.new(3, 6, 8),
 	FRIDGE_SIZE = Vector3.new(5, 7, 2.5),
 	MAX_CELLS = 12, -- 6 encostadas na parede do fundo + 6 ao lado da divisória
-	CELL_SIZE = Vector3.new(3, 7, 3),
+	CELL_SIZE = Vector3.new(5, 8, 4), -- cabe um monstro da rua encolhido
 }
 
 -- Dinheiro (docs/V1.md, seção 3).
@@ -175,6 +175,32 @@ Config.RedMoon = {
 Config.Leaderboard = {
 	UPDATE_SECONDS = 120,
 	SIZE = 10,
+}
+
+-- Itens do catálogo do Roblox para os clientes (ids testados no Studio). Lista vazia = só os acessórios feitos
+-- de Parts (server/CustomerModel.luau).
+Config.CustomerLooks = {
+	Hair = {} :: { number },
+	Hats = {} :: { number },
+	Glasses = {} :: { number },
+	Shirts = {} :: { number },
+	Pants = {} :: { number },
+	Faces = {} :: { number },
+}
+
+-- Monstros da rua (docs/V3.md, seção 3): saem da Fenda e atravessam a Avenida. Qualquer jogador captura pagando.
+Config.StreetMonsters = {
+	SPAWN_SECONDS_DAY = 6, -- um monstro novo a cada X segundos
+	SPAWN_SECONDS_NIGHT = 4,
+	SPAWN_SECONDS_RED_MOON = 2.5,
+	MAX_ON_STREET = 14,
+	WALK_SPEED = 5,
+	DELIVERY_SPEED = 16, -- depois de capturado, corre para a sala dos fundos de quem pagou
+	LUCK_NIGHT = 1.6, -- de madrugada os raros ficam mais prováveis...
+	LUCK_RED_MOON = 3, -- ...e na Lua Vermelha muito mais
+	VARIANT_LUCK_NIGHT = 1.5,
+	CAPTURE_HOLD_SECONDS = 0.6,
+	ANNOUNCE = { Epic = true, Legendary = true, Mythic = true }, -- avisa o servidor inteiro quando um desses sai
 }
 
 -- Ajudas para testar no Studio. Não têm efeito no jogo publicado.
