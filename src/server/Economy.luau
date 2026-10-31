@@ -12,6 +12,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Data = require(script.Parent.Data)
+local Passes = require(script.Parent.Passes)
 local Plots = require(script.Parent.Plots)
 
 local Economy = {}
@@ -101,14 +102,21 @@ function Economy.trySpend(player: Player, amount: number): boolean
 	return true
 end
 
--- Toda renda da loja entra por aqui.
-function Economy.addToSafe(player: Player, amount: number)
+-- Multiplicador de renda do jogador (gamepass 2x Cash).
+function Economy.incomeMultiplier(player: Player): number
+	return if Passes.has(player, "DoubleCash") then 2 else 1
+end
+
+-- Toda renda da loja entra por aqui, já com o multiplicador. Devolve quanto entrou de fato.
+function Economy.addToSafe(player: Player, amount: number): number
 	local data = Data.get(player)
 	if data == nil or amount <= 0 then
-		return
+		return 0
 	end
+	amount *= Economy.incomeMultiplier(player)
 	data.SafeBalance += amount
 	refresh(player)
+	return amount
 end
 
 -- Tira uma fração do cofre (ex.: anomalia atendida leva 10%). Devolve quanto saiu.

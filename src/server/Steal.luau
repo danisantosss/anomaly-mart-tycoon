@@ -17,6 +17,7 @@ local Cells = require(script.Parent.Cells)
 local Data = require(script.Parent.Data)
 local Layout = require(script.Parent.Street.Layout)
 local Plots = require(script.Parent.Plots)
+local StoreUpgrades = require(script.Parent.StoreUpgrades)
 
 local Settings = Config.Steal
 
@@ -104,7 +105,8 @@ local function finish(thief: Player)
 	end
 	carrying[thief] = nil
 	carry.marker:Destroy()
-	setSpeed(thief, Settings.NORMAL_SPEED)
+	thief:SetAttribute("CarryingStolen", nil)
+	setSpeed(thief, StoreUpgrades.walkSpeed(thief))
 end
 
 -- Cancela: a anomalia volta para a cela do dono.
@@ -174,6 +176,7 @@ local function onPromptTriggered(prompt: ProximityPrompt, thief: Player)
 
 	Cells.setHidden(owner, cell, true)
 	carrying[thief] = { owner = owner, cell = cell, marker = makeMarker(thief, cell) }
+	thief:SetAttribute("CarryingStolen", true)
 	setSpeed(thief, Settings.CARRY_SPEED)
 
 	local name = Anomalies.fullName(cell.Kind, cell.Variant)

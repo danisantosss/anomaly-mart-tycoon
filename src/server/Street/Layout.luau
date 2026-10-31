@@ -38,6 +38,25 @@ Layout.STORE_FRONT_Z = -Street.PLOT_SIZE / 2 + Street.SIDEWALK_DEPTH
 Layout.STORE_BACK_Z = Layout.STORE_FRONT_Z + Street.STORE_DEPTH
 Layout.PARTITION_Z = Layout.STORE_BACK_Z - Street.BACKROOM_DEPTH
 
+-- Centro (no chão) da prateleira número `index`, no espaço local do terreno. Duas fileiras (Z) e até três
+-- colunas (X) à esquerda de quem entra, mais uma vaga perto do caixa. O cliente pega os itens pelo lado -X.
+local SHELF_SLOTS = {
+	Vector2.new(3, 7),
+	Vector2.new(8, 7),
+	Vector2.new(3, 15),
+	Vector2.new(8, 15),
+	Vector2.new(13, 7),
+	Vector2.new(13, 15),
+	Vector2.new(-3, 15),
+}
+
+function Layout.shelfOffset(index: number): Vector3
+	local slot = SHELF_SLOTS[index]
+	assert(slot, `prateleira inválida: {index}`)
+	-- slot.Y é a distância a partir da frente da loja.
+	return Vector3.new(slot.X, 0, Layout.STORE_FRONT_Z + slot.Y)
+end
+
 -- `position` (no mundo) está dentro da sala dos fundos da loja do terreno `origin`?
 function Layout.isInBackroom(origin: CFrame, position: Vector3): boolean
 	local localPos = origin:PointToObjectSpace(position)
