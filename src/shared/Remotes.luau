@@ -7,6 +7,7 @@ local RunService = game:GetService("RunService")
 
 local NAMES = {
 	"CashCollected", -- servidor → cliente (amount: number): mostra o "+$" na tela
+	"Notify", -- servidor → cliente (text: string, color: Color3?): aviso rápido no meio da tela
 }
 
 local FOLDER_NAME = "Remotes"

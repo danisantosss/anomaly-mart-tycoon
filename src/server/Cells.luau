@@ -1,0 +1,199 @@
+--!strict
+-- Celas de contenção (docs/V1.md, seção 6).
+--
+-- As anomalias capturadas ficam salvas em Data.Cells (uma por cela, na ordem) e aparecem dentro das celas
+-- de vidro da sala dos fundos. Cada uma gera $/s, que cai no cofre a cada segundo.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Anomalies = require(ReplicatedStorage.Shared.Anomalies)
+local Config = require(ReplicatedStorage.Shared.Config)
+local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
+local AnomalyLooks = require(script.Parent.AnomalyLooks)
+local CustomerModel = require(script.Parent.CustomerModel)
+local Data = require(script.Parent.Data)
+local Economy = require(script.Parent.Economy)
+local Plots = require(script.Parent.Plots)
+local StoreBuilder = require(script.Parent.Street.StoreBuilder)
+
+local Street = Config.Street
+
+local Cells = {}
+
+local DISPLAY_SCALE = 0.6 -- boneco menor, para caber na cela
+
+-- Criar o boneco demora um instante. Se as celas forem redesenhadas nesse meio-tempo, o boneco atrasado
+-- é descartado (comparando com a versão atual).
+local renderVersion: { [Player]: number } = {}
+
+function Cells.capacity(player: Player): number
+	local data = Data.get(player)
+	local extra = if data then data.Upgrades.Cells or 0 else 0
+	return math.min(Street.START_CELLS + extra, Street.MAX_CELLS)
+end
+
+function Cells.count(player: Player): number
+	local data = Data.get(player)
+	return if data then #data.Cells else 0
+end
+
+function Cells.totalIncome(player: Player): number
+	local data = Data.get(player)
+	if data == nil then
+		return 0
+	end
+	local total = 0
+	for _, cell in data.Cells do
+		total += Anomalies.income(cell.Kind, cell.Variant)
+	end
+	return total
+end
+
+local function cellPart(store: Model, index: number): BasePart?
+	local folder = store:FindFirstChild("Cells")
+	local part = folder and folder:FindFirstChild(`Cell{index}`)
+	return if part and part:IsA("BasePart") then part else nil
+end
+
+local function clearDisplay(cell: BasePart)
+	for _, name in { "Occupant", "CellBillboard" } do
+		local old = cell:FindFirstChild(name)
+		if old then
+			old:Destroy()
+		end
+	end
+end
+
+local function showOccupant(player: Player, version: number, cell: BasePart, kind: string, variant: string)
+	local model = CustomerModel.build()
+	if renderVersion[player] ~= version or cell.Parent == nil then
+		model:Destroy()
+		return
+	end
+	model.Name = "Occupant"
+	AnomalyLooks.apply(model, kind, variant)
+	model:ScaleTo(model:GetScale() * DISPLAY_SCALE)
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = true
+			descendant.CanCollide = false
+			descendant.CanQuery = false
+		end
+	end
+	local _, size = model:GetBoundingBox()
+	local floor = cell.CFrame * CFrame.new(0, -cell.Size.Y / 2, 0)
+	model:PivotTo(floor * CFrame.new(0, size.Y / 2, 0) * CFrame.Angles(0, math.pi, 0))
+	model.Parent = cell
+
+	local definition = Anomalies.get(kind)
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "CellBillboard"
+	billboard.Size = UDim2.fromOffset(170, 46)
+	billboard.StudsOffset = Vector3.new(0, cell.Size.Y / 2 + 1, 0)
+	billboard.MaxDistance = 40
+	billboard.Parent = cell
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.FredokaOne
+	label.TextScaled = true
+	label.TextStrokeTransparency = 0.3
+	label.TextColor3 = if definition then Anomalies.RARITY_COLORS[definition.rarity] else Color3.new(1, 1, 1)
+	label.Text = `{Anomalies.fullName(kind, variant)}\n{NumberFormat.cash(Anomalies.income(kind, variant))}/s`
+	label.Parent = billboard
+end
+
+local function updateLeaderstat(player: Player)
+	local leaderstats = player:FindFirstChild("leaderstats")
+	local stat = leaderstats and leaderstats:FindFirstChild("Anomalies")
+	if stat and stat:IsA("IntValue") then
+		stat.Value = Cells.count(player)
+	end
+	player:SetAttribute("IncomePerSecond", Cells.totalIncome(player))
+end
+
+-- Redesenha todas as celas da loja a partir dos dados salvos.
+function Cells.render(player: Player)
+	local data = Data.get(player)
+	local store = Plots.getStore(player)
+	local origin = Plots.getOrigin(player)
+	if data == nil or store == nil or origin == nil then
+		return
+	end
+
+	local version = (renderVersion[player] or 0) + 1
+	renderVersion[player] = version
+
+	for index = 1, Cells.capacity(player) do
+		local cell = cellPart(store, index) or StoreBuilder.addCell(origin, store, index)
+		clearDisplay(cell)
+		local occupant = data.Cells[index]
+		if occupant then
+			task.spawn(showOccupant, player, version, cell, occupant.Kind, occupant.Variant)
+		end
+	end
+	updateLeaderstat(player)
+end
+
+-- Põe uma anomalia na primeira cela livre. Devolve false se não tem cela livre.
+function Cells.tryAdd(player: Player, kind: string, variant: string): boolean
+	local data = Data.get(player)
+	if data == nil or #data.Cells >= Cells.capacity(player) then
+		return false
+	end
+	table.insert(data.Cells, { Kind = kind, Variant = variant })
+	Cells.render(player)
+	return true
+end
+
+-- Tira a anomalia da cela `index` (usado pelo roubo no PR 7). As de trás andam uma cela para frente.
+function Cells.remove(player: Player, index: number): Data.CellData?
+	local data = Data.get(player)
+	if data == nil or data.Cells[index] == nil then
+		return nil
+	end
+	local removed = table.remove(data.Cells, index)
+	Cells.render(player)
+	return removed
+end
+
+local function onPlayerAdded(player: Player)
+	local leaderstats = player:WaitForChild("leaderstats", 10)
+	if leaderstats and leaderstats:FindFirstChild("Anomalies") == nil then
+		local stat = Instance.new("IntValue")
+		stat.Name = "Anomalies"
+		stat.Parent = leaderstats
+	end
+
+	if Data.waitFor(player) then
+		Cells.render(player)
+	end
+end
+
+local function incomeLoop()
+	while true do
+		task.wait(1)
+		for _, player in Players:GetPlayers() do
+			local income = Cells.totalIncome(player)
+			if income > 0 then
+				Economy.addToSafe(player, income)
+			end
+		end
+	end
+end
+
+-- Precisa rodar depois de Plots.start() e Economy.start().
+function Cells.start()
+	Players.PlayerAdded:Connect(onPlayerAdded)
+	Players.PlayerRemoving:Connect(function(player)
+		renderVersion[player] = nil
+	end)
+	for _, player in Players:GetPlayers() do
+		task.spawn(onPlayerAdded, player)
+	end
+	task.spawn(incomeLoop)
+end
+
+return Cells

@@ -89,6 +89,37 @@ function Hud.start()
 		phaseLabel.TextColor3 = if isNight then NIGHT_COLOR else DAY_COLOR
 	end)
 
+	-- Avisos do servidor (anomalia capturada, cofre roubado...), um embaixo do outro.
+	local toasts = Instance.new("Frame")
+	toasts.Name = "Toasts"
+	toasts.BackgroundTransparency = 1
+	toasts.AnchorPoint = Vector2.new(0.5, 0)
+	toasts.Size = UDim2.fromScale(0.6, 0.3)
+	toasts.Position = UDim2.fromScale(0.5, 0.18)
+	toasts.Parent = gui
+	local layout = Instance.new("UIListLayout")
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	layout.Padding = UDim.new(0, 4)
+	layout.Parent = toasts
+
+	Remotes.get("Notify").OnClientEvent:Connect(function(text: string, color: Color3?)
+		local label = makeLabel("Toast", toasts)
+		label.Size = UDim2.fromScale(1, 0.2)
+		label.TextColor3 = color or Color3.new(1, 1, 1)
+		label.Text = text
+		task.delay(3.5, function()
+			local fade = TweenService:Create(
+				label,
+				TweenInfo.new(0.5),
+				{ TextTransparency = 1, TextStrokeTransparency = 1 }
+			)
+			fade.Completed:Connect(function()
+				label:Destroy()
+			end)
+			fade:Play()
+		end)
+	end)
+
 	Remotes.get("CashCollected").OnClientEvent:Connect(function(amount: number)
 		popCollected(gui, amount)
 	end)
