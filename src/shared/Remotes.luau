@@ -9,6 +9,10 @@ local NAMES = {
 	"CashCollected", -- servidor → cliente (amount: number): mostra o "+$" na tela
 	"Notify", -- servidor → cliente (text: string, color: Color3?): aviso rápido no meio da tela
 	"BuyUpgrade", -- cliente → servidor (id: string): pedido de compra; o servidor confere tudo
+	"ClaimDaily", -- cliente → servidor: pegar a recompensa diária
+	"ClaimGift", -- cliente → servidor: pegar o próximo presente de tempo jogado
+	"RedeemCode", -- cliente → servidor (code: string)
+	"OpenFranchise", -- cliente → servidor: abrir uma Franquia (rebirth)
 }
 
 local FOLDER_NAME = "Remotes"

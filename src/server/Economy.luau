@@ -83,6 +83,11 @@ function Economy.getCash(player: Player): number
 end
 
 -- Põe dinheiro direto no saldo (prêmios, ganho offline).
+-- Atualiza saldo, placar e plaquinha do cofre depois de mexer nos dados direto (ex.: Franquia).
+function Economy.refreshDisplay(player: Player)
+	refresh(player)
+end
+
 function Economy.addCash(player: Player, amount: number)
 	local data = Data.get(player)
 	if data == nil or amount <= 0 then
@@ -103,9 +108,34 @@ function Economy.trySpend(player: Player, amount: number): boolean
 	return true
 end
 
--- Multiplicador de renda do jogador (gamepass 2x Cash).
+-- Multiplicador total de renda do jogador. Tudo se multiplica (docs/V2.md, seção 5):
+--   gamepass 2x Cash × Franquias (+50% cada) × Index (+2% por entrada) × amigos (+10% cada, até 30%)
+--   × boost temporário (2x, de presentes, códigos e recompensa diária)
 function Economy.incomeMultiplier(player: Player): number
-	return if Passes.has(player, "DoubleCash") then 2 else 1
+	local multiplier = if Passes.has(player, "DoubleCash") then 2 else 1
+	local data = Data.get(player)
+	if data then
+		multiplier *= 1 + data.Franchise * Config.Franchise.INCOME_BONUS
+		local entries = 0
+		for _ in data.Index do
+			entries += 1
+		end
+		multiplier *= 1 + entries * Config.Bonuses.INDEX_PER_ENTRY
+	end
+	local friends = player:GetAttribute("FriendBoost")
+	if typeof(friends) == "number" then
+		multiplier *= 1 + friends
+	end
+	local boostEndsAt = player:GetAttribute("BoostEndsAt")
+	if typeof(boostEndsAt) == "number" and boostEndsAt > workspace:GetServerTimeNow() then
+		multiplier *= Config.Bonuses.BOOST_MULTIPLIER
+	end
+	return multiplier
+end
+
+-- Mostra o multiplicador na HUD (atributo "IncomeMultiplier").
+function Economy.publishMultiplier(player: Player)
+	player:SetAttribute("IncomeMultiplier", math.floor(Economy.incomeMultiplier(player) * 100 + 0.5) / 100)
 end
 
 -- Toda renda da loja entra por aqui, já com o multiplicador. Devolve quanto entrou de fato.

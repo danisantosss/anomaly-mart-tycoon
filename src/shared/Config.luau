@@ -124,6 +124,59 @@ Config.Offline = {
 	MIN_SECONDS = 60, -- abaixo disso não mostra nada
 }
 
+-- Franquia (rebirth, docs/V2.md seção 4): recomeça a loja com um bônus permanente de renda.
+Config.Franchise = {
+	BASE_COST = 50000, -- saldo necessário para a 1ª Franquia...
+	COST_GROWTH = 4, -- ...e cada próxima custa 4x a anterior
+	INCOME_BONUS = 0.5, -- +50% de renda por Franquia
+	MAX = 10,
+}
+
+-- Bônus que se multiplicam com a renda (docs/V2.md, seção 5).
+Config.Bonuses = {
+	INDEX_PER_ENTRY = 0.02, -- +2% de renda por anomalia + variante diferente no Index
+	FRIEND_PER_FRIEND = 0.10, -- +10% por amigo no mesmo servidor...
+	FRIEND_MAX = 0.30, -- ...até +30%
+	BOOST_MULTIPLIER = 2, -- boost temporário (presentes, códigos, recompensa diária)
+}
+
+-- Recompensa diária: valor do dia 1 ao 7 da sequência (multiplicado por 1 + Franquias). O dia 7 também dá
+-- um boost de 2x. Perder um dia volta para o dia 1.
+Config.Daily = {
+	REWARDS = { 100, 250, 500, 1000, 2000, 3500, 6000 },
+	DAY7_BOOST_MINUTES = 15,
+}
+
+-- Presentes por tempo jogado na sessão (minutos). Os pares dão dinheiro (2 minutos da renda atual, no mínimo
+-- $200) e os ímpares um boost de 2x por alguns minutos.
+Config.Gifts = {
+	MINUTES = { 3, 8, 15, 25, 40, 60 },
+	CASH_SECONDS_OF_INCOME = 120,
+	CASH_MIN = 200,
+	BOOST_MINUTES = 5,
+}
+
+-- Códigos (divulgar no Discord/redes). Cada jogador usa cada código uma vez. Maiúsculas não importam.
+Config.Codes = {
+	RELEASE = { cash = 500 },
+	ANOMALY = { cash = 1500 },
+	NIGHTSHIFT = { boostMinutes = 10 },
+}
+
+-- Lua Vermelha (docs/V2.md, seção 6): algumas madrugadas viram evento para o servidor inteiro.
+Config.RedMoon = {
+	CHANCE = 0.25, -- chance de cada madrugada ser de Lua Vermelha
+	ANOMALY_CHANCE_MULTIPLIER = 1.8,
+	ANOMALY_CHANCE_MAX = 0.75,
+	RARE_VARIANT_LUCK = 3, -- variantes raras ficam 3x mais prováveis (só sorte do jogo, nunca vendida)
+}
+
+-- Placar global (OrderedDataStore). Atualiza devagar para não estourar o limite do DataStore.
+Config.Leaderboard = {
+	UPDATE_SECONDS = 120,
+	SIZE = 10,
+}
+
 -- Ajudas para testar no Studio. Não têm efeito no jogo publicado.
 Config.Debug = {
 	-- Renda extra por segundo no cofre, só no Studio. Útil para testar compras sem jogar muito.
@@ -135,6 +188,8 @@ Config.Debug = {
 	STUDIO_NIGHT_ANOMALY_CHANCE = 0.6,
 	-- No Studio, finge que o jogador tem todos os gamepasses (para testar os efeitos sem comprar).
 	STUDIO_OWN_ALL_PASSES = false,
+	-- No Studio, chance de Lua Vermelha em cada madrugada (0 = usar a normal).
+	STUDIO_RED_MOON_CHANCE = 0.5,
 }
 
 return Config
