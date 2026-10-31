@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Versão fixa baixada direto da página de releases. O script de instalação oficial consulta a API do
+      # GitHub sem token e às vezes recebe 403 (limite de requisições), derrubando o CI à toa.
+      - name: Instalar Rokit
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/rokit.zip" \
+            https://github.com/rojo-rbx/rokit/releases/download/v1.2.0/rokit-1.2.0-linux-x86_64.zip
+          unzip -q "$RUNNER_TEMP/rokit.zip" -d "$RUNNER_TEMP/rokit"
+          "$RUNNER_TEMP/rokit/rokit" self-install
+          echo "$HOME/.rokit/bin" >> "$GITHUB_PATH"
+
+      - name: Instalar ferramentas (rojo, selene, stylua)
+        run: rokit install --no-trust-check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Formatação (StyLua)
+        run: stylua --check src
+
+      - name: Lint (Selene)
+        run: selene src
+
+      - name: Build do place (Rojo)
+        run: rojo build default.project.json -o AnomalyMart.rbxl

@@ -1,0 +1,5 @@
+# Ferramentas do projeto. Depois de instalar o Rokit, rode `rokit install` na pasta do repo.
+[tools]
+rojo = "rojo-rbx/rojo@7.7.1"
+selene = "Kampfkarren/selene@0.31.0"
+stylua = "JohnnyMorganz/StyLua@2.6.0"

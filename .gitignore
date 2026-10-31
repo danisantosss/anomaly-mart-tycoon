@@ -1,0 +1,14 @@
+# Places gerados pelo `rojo build` (o código-fonte fica em src/)
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+*.lock
+
+# Gerados pelas ferramentas
+sourcemap.json
+roblox.yml
+
+# Sistema
+.DS_Store
+Thumbs.db
