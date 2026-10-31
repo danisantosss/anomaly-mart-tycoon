@@ -31,6 +31,7 @@ export type PlayerData = {
 	TotalEarned: number, -- tudo que já entrou no cofre (placar global)
 	TotalCaptured: number,
 	Onboarding: { [string]: boolean }, -- passos do funil de primeira vez já registrados (server/Analytics.luau)
+	Receipts: { string }, -- últimas compras de Robux já entregues (server/Receipts.luau), para não dar duas vezes
 }
 
 local TEMPLATE: PlayerData = {
@@ -48,6 +49,7 @@ local TEMPLATE: PlayerData = {
 	TotalEarned = 0,
 	TotalCaptured = 0,
 	Onboarding = {},
+	Receipts = {},
 }
 
 -- Mudar o nome cria um banco novo e zera todo mundo. Só fazer isso antes do lançamento.
