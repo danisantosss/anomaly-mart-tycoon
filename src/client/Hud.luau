@@ -19,6 +19,9 @@ local CASH_GREEN = Color3.fromRGB(120, 255, 140)
 local DAY_COLOR = Color3.fromRGB(255, 220, 120)
 local NIGHT_COLOR = Color3.fromRGB(150, 170, 255)
 local SAFE_COLOR = Color3.fromRGB(200, 230, 200)
+local GOLD = Color3.fromRGB(255, 205, 80)
+local BOOST_COLOR = Color3.fromRGB(120, 220, 255)
+local RED_MOON_COLOR = Color3.fromRGB(255, 70, 70)
 
 local function makeLabel(name: string, parent: Instance): TextLabel
 	local label = Instance.new("TextLabel")
@@ -94,18 +97,60 @@ function Hud.start()
 	phaseLabel.Size = UDim2.fromScale(0.25, 0.045)
 	phaseLabel.Position = UDim2.fromScale(0.5, 0.14)
 
+	-- Canto superior direito: multiplicador total, estrela da Franquia e tempo do boost 2x.
+	local bonusLabel = makeLabel("Bonus", gui)
+	bonusLabel.AnchorPoint = Vector2.new(1, 0)
+	bonusLabel.Size = UDim2.fromScale(0.22, 0.04)
+	bonusLabel.Position = UDim2.fromScale(0.98, 0.02)
+	bonusLabel.TextXAlignment = Enum.TextXAlignment.Right
+	bonusLabel.TextColor3 = GOLD
+
+	local boostLabel = makeLabel("Boost", gui)
+	boostLabel.AnchorPoint = Vector2.new(1, 0)
+	boostLabel.Size = UDim2.fromScale(0.22, 0.032)
+	boostLabel.Position = UDim2.fromScale(0.98, 0.065)
+	boostLabel.TextXAlignment = Enum.TextXAlignment.Right
+	boostLabel.TextColor3 = BOOST_COLOR
+
+	local function updateBonus()
+		local multiplier = player:GetAttribute("IncomeMultiplier")
+		local franchise = player:GetAttribute("Franchise")
+		local parts = {}
+		if typeof(franchise) == "number" and franchise > 0 then
+			table.insert(parts, `★{franchise}`)
+		end
+		if typeof(multiplier) == "number" and multiplier > 1.001 then
+			table.insert(parts, string.format("x%.2f income", multiplier))
+		end
+		bonusLabel.Text = table.concat(parts, "  ")
+	end
+	player:GetAttributeChangedSignal("IncomeMultiplier"):Connect(updateBonus)
+	player:GetAttributeChangedSignal("Franchise"):Connect(updateBonus)
+	updateBonus()
+
 	RunService.Heartbeat:Connect(function()
+		local now = workspace:GetServerTimeNow()
+		local boostEndsAt = player:GetAttribute("BoostEndsAt")
+		if typeof(boostEndsAt) == "number" and boostEndsAt > now then
+			local left = math.ceil(boostEndsAt - now)
+			boostLabel.Text = string.format("2x BOOST %d:%02d", left // 60, left % 60)
+		else
+			boostLabel.Text = ""
+		end
+
 		local phase = ReplicatedStorage:GetAttribute("Phase")
 		local endsAt = ReplicatedStorage:GetAttribute("PhaseEndsAt")
 		if typeof(phase) ~= "string" or typeof(endsAt) ~= "number" then
 			phaseLabel.Text = ""
 			return
 		end
-		local remaining = math.max(0, math.ceil(endsAt - workspace:GetServerTimeNow()))
+		local remaining = math.max(0, math.ceil(endsAt - now))
 		local clock = string.format("%d:%02d", remaining // 60, remaining % 60)
 		local isNight = phase == "Night"
-		phaseLabel.Text = `{if isNight then "NIGHT SHIFT" else "DAY"} · {clock}`
-		phaseLabel.TextColor3 = if isNight then NIGHT_COLOR else DAY_COLOR
+		local redMoon = isNight and ReplicatedStorage:GetAttribute("RedMoon") == true
+		local title = if redMoon then "RED MOON" elseif isNight then "NIGHT SHIFT" else "DAY"
+		phaseLabel.Text = `{title} · {clock}`
+		phaseLabel.TextColor3 = if redMoon then RED_MOON_COLOR elseif isNight then NIGHT_COLOR else DAY_COLOR
 	end)
 
 	-- Avisos do servidor (anomalia capturada, cofre roubado...), um embaixo do outro.

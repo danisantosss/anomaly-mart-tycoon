@@ -4,6 +4,7 @@
 -- A fase atual fica em atributos do ReplicatedStorage, que o cliente lê para a HUD:
 --   Phase        "Day" ou "Night"
 --   PhaseEndsAt  workspace:GetServerTimeNow() em que a fase acaba
+--   RedMoon      true durante uma madrugada de Lua Vermelha (evento do servidor inteiro, docs/V2.md seção 6)
 
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,12 +12,24 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
 
 export type Phase = "Day" | "Night"
 
 local DayNight = {}
 
 local phase: Phase = "Day"
+local redMoon = false
+local random = Random.new()
+
+local RED_MOON_LOOK = {
+	ClockTime = 0,
+	Brightness = 0.6,
+	Ambient = Color3.fromRGB(70, 18, 22),
+	OutdoorAmbient = Color3.fromRGB(80, 20, 25),
+	FogEnd = 260,
+	FogColor = Color3.fromRGB(60, 8, 12),
+}
 local listeners: { (Phase) -> () } = {}
 
 local LOOKS: { [Phase]: { [string]: any } } = {
@@ -50,7 +63,16 @@ end
 
 local function applyLook(of: Phase)
 	local info = TweenInfo.new(Config.Cycle.TRANSITION_SECONDS, Enum.EasingStyle.Sine)
-	TweenService:Create(Lighting, info, LOOKS[of]):Play()
+	TweenService:Create(Lighting, info, if redMoon then RED_MOON_LOOK else LOOKS[of]):Play()
+end
+
+local function redMoonChance(): number
+	local studio = Config.Debug.STUDIO_RED_MOON_CHANCE
+	return if RunService:IsStudio() and studio > 0 then studio else Config.RedMoon.CHANCE
+end
+
+function DayNight.isRedMoon(): boolean
+	return redMoon
 end
 
 function DayNight.getPhase(): Phase
@@ -68,6 +90,14 @@ end
 
 local function enter(newPhase: Phase)
 	phase = newPhase
+	redMoon = newPhase == "Night" and random:NextNumber() < redMoonChance()
+	ReplicatedStorage:SetAttribute("RedMoon", redMoon)
+	if redMoon then
+		Remotes.get("Notify"):FireAllClients(
+			"RED MOON! More anomalies tonight, and rare variants are 3x more likely!",
+			Color3.fromRGB(255, 70, 70)
+		)
+	end
 	ReplicatedStorage:SetAttribute("Phase", newPhase)
 	ReplicatedStorage:SetAttribute("PhaseEndsAt", workspace:GetServerTimeNow() + duration(newPhase))
 	applyLook(newPhase)

@@ -142,9 +142,24 @@ function Anomalies.pickDefinition(random: Random): Definition
 	return LIST[weightedIndex(definitionWeights, random)]
 end
 
-function Anomalies.pickVariant(random: Random): Variant
-	return VARIANTS[weightedIndex(variantWeights, random)]
+-- `luck` > 1 deixa as variantes raras mais prováveis (só a Normal fica com o peso de sempre). Usado na Lua
+-- Vermelha. Sorte só do jogo: nunca vender isso por Robux.
+function Anomalies.pickVariant(random: Random, luck: number?): Variant
+	if luck == nil or luck <= 1 then
+		return VARIANTS[weightedIndex(variantWeights, random)]
+	end
+	local lucky = {}
+	for index, variant in VARIANTS do
+		table.insert(
+			lucky,
+			if variant.id == "Normal" then variantWeights[index] else variantWeights[index] * luck
+		)
+	end
+	return VARIANTS[weightedIndex(lucky, random)]
 end
+
+-- Quantas entradas o Index tem (tipos x variantes).
+Anomalies.INDEX_SIZE = #LIST * #VARIANTS
 
 function Anomalies.income(id: string, variantId: string): number
 	local definition = byId[id]

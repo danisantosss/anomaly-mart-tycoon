@@ -517,7 +517,12 @@ end
 
 local function anomalyChance(): number
 	local studio = Config.Debug.STUDIO_NIGHT_ANOMALY_CHANCE
-	return if RunService:IsStudio() and studio > 0 then studio else AnomalySettings.NIGHT_CHANCE
+	local chance = if RunService:IsStudio() and studio > 0 then studio else AnomalySettings.NIGHT_CHANCE
+	if DayNight.isRedMoon() then
+		chance =
+			math.min(chance * Config.RedMoon.ANOMALY_CHANCE_MULTIPLIER, Config.RedMoon.ANOMALY_CHANCE_MAX)
+	end
+	return chance
 end
 
 -- Jogador novo (sem nenhuma cela) que já cobrou alguns clientes de dia: hora da primeira anomalia.
@@ -542,7 +547,10 @@ local function spawnCustomer(state: StoreState)
 		state.tutorialDone = true
 	elseif DayNight.isNight() and random:NextNumber() < anomalyChance() then
 		kind = Anomalies.pickDefinition(random).id
-		variant = Anomalies.pickVariant(random).id
+		variant = Anomalies.pickVariant(
+			random,
+			if DayNight.isRedMoon() then Config.RedMoon.RARE_VARIANT_LUCK else nil
+		).id
 	end
 
 	-- The Twin copia a aparência de alguém que já está na loja.

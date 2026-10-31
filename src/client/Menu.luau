@@ -1,0 +1,81 @@
+--!strict
+-- Botões laterais (meio da tela, à esquerda): SHOP, INDEX, GIFTS e FRANCHISE. Abrem as janelas sem precisar
+-- andar até o terminal. O botão de presentes ganha um "!" quando tem algo para pegar.
+-- Tamanho em escala com mínimo em pixels, para dar para tocar no celular.
+
+local Players = game:GetService("Players")
+
+local Ui = require(script.Parent.Ui)
+local FranchiseUi = require(script.Parent.FranchiseUi)
+local IndexUi = require(script.Parent.IndexUi)
+local RewardsUi = require(script.Parent.RewardsUi)
+local UpgradesUi = require(script.Parent.UpgradesUi)
+
+local player = Players.LocalPlayer
+
+local Menu = {}
+
+type Entry = { label: string, color: Color3, toggle: () -> () }
+
+local ENTRIES: { Entry } = {
+	{ label = "SHOP", color = Ui.GREEN, toggle = UpgradesUi.toggle },
+	{ label = "INDEX", color = Color3.fromRGB(140, 90, 210), toggle = IndexUi.toggle },
+	{ label = "GIFTS", color = Ui.GOLD, toggle = RewardsUi.toggle },
+	{ label = "FRANCHISE", color = Color3.fromRGB(210, 70, 90), toggle = FranchiseUi.toggle },
+}
+
+function Menu.start()
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "Menu"
+	gui.ResetOnSpawn = false
+	gui.Parent = player:WaitForChild("PlayerGui")
+
+	local column = Instance.new("Frame")
+	column.BackgroundTransparency = 1
+	column.AnchorPoint = Vector2.new(0, 0.5)
+	column.Position = UDim2.fromScale(0.01, 0.5)
+	column.Size = UDim2.fromScale(0.11, 0.42)
+	column.Parent = gui
+	local constraint = Instance.new("UISizeConstraint")
+	constraint.MinSize = Vector2.new(84, 200)
+	constraint.MaxSize = Vector2.new(150, 320)
+	constraint.Parent = column
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0.03, 0)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = column
+
+	local badge: TextLabel? = nil
+	for index, entry in ENTRIES do
+		local button = Ui.button(column, UDim2.fromScale(1, 0.22), UDim2.new(), entry.color)
+		button.LayoutOrder = index
+		button.Text = entry.label
+		button.Activated:Connect(entry.toggle)
+		if entry.toggle == RewardsUi.toggle then
+			local mark = Ui.text(
+				button,
+				"!",
+				UDim2.fromScale(0.28, 0.6),
+				UDim2.fromScale(0.8, -0.2),
+				Enum.TextXAlignment.Center
+			)
+			mark.BackgroundTransparency = 0
+			mark.BackgroundColor3 = Color3.fromRGB(220, 40, 40)
+			mark.Visible = false
+			Ui.round(mark, 1)
+			badge = mark
+		end
+	end
+
+	-- O "!" depende do relógio (presentes por tempo), então confere a cada segundo.
+	task.spawn(function()
+		while gui.Parent do
+			if badge then
+				badge.Visible = RewardsUi.hasSomething()
+			end
+			task.wait(1)
+		end
+	end)
+end
+
+return Menu

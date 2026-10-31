@@ -113,6 +113,27 @@ local function onPlayerAdded(player: Player)
 	end
 end
 
+-- Derruba a loja do jogador e monta de novo a partir da barraquinha (Franquia). Todos os sistemas preparam
+-- a loja nova pelo Plots.onStoreReady, e o Builds reconstrói o que continua comprado.
+function Plots.rebuildStore(player: Player)
+	local index = plotByPlayer[player]
+	if index == nil then
+		return
+	end
+	local plot = plotModels[index]
+	local old = plot:FindFirstChild("Store")
+	if old then
+		old:Destroy()
+	end
+	StoreBuilder.build(Layout.plotCFrame(index), player, plot)
+	for _, callback in storeReadyCallbacks do
+		task.spawn(callback, player)
+	end
+	if player.Character then
+		teleportToStore(player, player.Character)
+	end
+end
+
 local function onPlayerRemoving(player: Player)
 	local index = plotByPlayer[player]
 	if index == nil then

@@ -272,6 +272,8 @@ local function incomeLoop()
 	while true do
 		task.wait(1)
 		for _, player in Players:GetPlayers() do
+			Economy.publishMultiplier(player)
+			updateLeaderstat(player)
 			local income = Cells.totalIncome(player) + Cells.passiveIncome(player)
 			if income > 0 then
 				Economy.addToSafe(player, income)
