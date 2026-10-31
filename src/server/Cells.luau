@@ -27,6 +27,10 @@ local DISPLAY_SCALE = 0.6 -- boneco menor, para caber na cela
 -- é descartado (comparando com a versão atual).
 local renderVersion: { [Player]: number } = {}
 
+-- Anomalias sendo carregadas por um ladrão neste momento: somem da cela e não rendem, mas continuam nos dados
+-- do dono até o roubo dar certo (ver Steal.luau). Chave fraca: some sozinho quando a cela é removida.
+local hidden: { [Data.CellData]: boolean } = setmetatable({}, { __mode = "k" }) :: any
+
 function Cells.capacity(player: Player): number
 	local data = Data.get(player)
 	local extra = if data then data.Upgrades.Cells or 0 else 0
@@ -45,7 +49,9 @@ function Cells.totalIncome(player: Player): number
 	end
 	local total = 0
 	for _, cell in data.Cells do
-		total += Anomalies.income(cell.Kind, cell.Variant)
+		if not hidden[cell] then
+			total += Anomalies.income(cell.Kind, cell.Variant)
+		end
 	end
 	return total
 end
@@ -57,7 +63,7 @@ local function cellPart(store: Model, index: number): BasePart?
 end
 
 local function clearDisplay(cell: BasePart)
-	for _, name in { "Occupant", "CellBillboard" } do
+	for _, name in { "Occupant", "CellBillboard", "StealPrompt" } do
 		local old = cell:FindFirstChild(name)
 		if old then
 			old:Destroy()
@@ -105,6 +111,20 @@ local function showOccupant(player: Player, version: number, cell: BasePart, kin
 	label.Parent = billboard
 end
 
+-- Botão "Steal" na cela ocupada: aparece para todo mundo menos o dono. O Steal.luau trata o clique.
+local function addStealPrompt(owner: Player, cell: BasePart, index: number)
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "StealPrompt"
+	prompt.ActionText = "Steal"
+	prompt.ObjectText = "Cell"
+	prompt.HoldDuration = Config.Steal.HOLD_SECONDS
+	prompt.MaxActivationDistance = 7
+	prompt.RequiresLineOfSight = false
+	prompt:SetAttribute("ExcludeUserId", owner.UserId)
+	prompt:SetAttribute("CellIndex", index)
+	prompt.Parent = cell
+end
+
 local function updateLeaderstat(player: Player)
 	local leaderstats = player:FindFirstChild("leaderstats")
 	local stat = leaderstats and leaderstats:FindFirstChild("Anomalies")
@@ -130,8 +150,9 @@ function Cells.render(player: Player)
 		local cell = cellPart(store, index) or StoreBuilder.addCell(origin, store, index)
 		clearDisplay(cell)
 		local occupant = data.Cells[index]
-		if occupant then
+		if occupant and not hidden[occupant] then
 			task.spawn(showOccupant, player, version, cell, occupant.Kind, occupant.Variant)
+			addStealPrompt(player, cell, index)
 		end
 	end
 	updateLeaderstat(player)
@@ -148,15 +169,36 @@ function Cells.tryAdd(player: Player, kind: string, variant: string): boolean
 	return true
 end
 
--- Tira a anomalia da cela `index` (usado pelo roubo no PR 7). As de trás andam uma cela para frente.
-function Cells.remove(player: Player, index: number): Data.CellData?
+function Cells.get(player: Player, index: number): Data.CellData?
 	local data = Data.get(player)
-	if data == nil or data.Cells[index] == nil then
-		return nil
+	return if data then data.Cells[index] else nil
+end
+
+function Cells.isHidden(cell: Data.CellData): boolean
+	return hidden[cell] == true
+end
+
+-- Esconde (ou mostra de novo) uma anomalia que está sendo roubada.
+function Cells.setHidden(owner: Player, cell: Data.CellData, value: boolean)
+	hidden[cell] = if value then true else nil
+	Cells.render(owner)
+end
+
+-- Tira a anomalia dos dados do dono (roubo concluído). As de trás andam uma cela para frente.
+function Cells.removeCell(owner: Player, cell: Data.CellData): boolean
+	local data = Data.get(owner)
+	local index = data and table.find(data.Cells, cell)
+	if data == nil or index == nil then
+		return false
 	end
-	local removed = table.remove(data.Cells, index)
-	Cells.render(player)
-	return removed
+	table.remove(data.Cells, index)
+	hidden[cell] = nil
+	Cells.render(owner)
+	return true
+end
+
+function Cells.hasFreeCell(player: Player): boolean
+	return Data.get(player) ~= nil and Cells.count(player) < Cells.capacity(player)
 end
 
 local function onPlayerAdded(player: Player)
