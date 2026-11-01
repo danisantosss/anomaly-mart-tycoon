@@ -3,6 +3,9 @@
 -- com tamanho mínimo, para funcionar no PC e no celular. Só uma janela fica aberta por vez.
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Icons = require(ReplicatedStorage.Shared.Icons)
 
 local player = Players.LocalPlayer
 
@@ -56,6 +59,58 @@ function Ui.button(parent: Instance, size: UDim2, position: UDim2, color: Color3
 	return button
 end
 
+-- Ícone quadrado (shared/Icons.luau). Devolve nil se o ícone ainda não tem ID: quem chama segue só com texto.
+function Ui.icon(parent: Instance, name: string, size: UDim2, position: UDim2): ImageLabel?
+	local image = Icons.get(name)
+	if image == nil then
+		return nil
+	end
+	local label = Instance.new("ImageLabel")
+	label.Name = `{name}Icon`
+	label.BackgroundTransparency = 1
+	label.Image = image
+	label.ScaleType = Enum.ScaleType.Fit
+	label.SizeConstraint = Enum.SizeConstraint.RelativeYY -- quadrado, do tamanho da altura
+	label.Size = size
+	label.Position = position
+	label.Parent = parent
+	return label
+end
+
+-- Ícone que fica colado à esquerda do texto centralizado de `label` (saldo, cofre, evento).
+-- showIf (opcional) decide pelo texto se o ícone aparece; sem ele, aparece sempre que houver texto.
+function Ui.iconBeforeText(
+	label: TextLabel | TextButton,
+	name: string,
+	showIf: ((string) -> boolean)?
+): ImageLabel?
+	local icon = Ui.icon(label, name, UDim2.fromScale(1, 1), UDim2.new())
+	if icon == nil then
+		return nil
+	end
+	icon.AnchorPoint = Vector2.new(1, 0)
+	local function place()
+		icon.Position = UDim2.new(0.5, -label.TextBounds.X / 2 - 6, 0, 0)
+		icon.Visible = label.Text ~= "" and (showIf == nil or showIf(label.Text))
+	end
+	label:GetPropertyChangedSignal("TextBounds"):Connect(place)
+	label:GetPropertyChangedSignal("Text"):Connect(place)
+	place()
+	return icon
+end
+
+-- Texto do preço em Robux: só o número quando o ícone de Robux existe, "R$ 99" quando não existe.
+function Ui.robuxPrice(price: number): string
+	return if Icons.get("Robux") then tostring(price) else `R$ {price}`
+end
+
+-- Põe o ícone de Robux antes do preço do botão (aparece só enquanto o texto for um número).
+function Ui.robuxIcon(button: TextButton)
+	Ui.iconBeforeText(button, "Robux", function(text)
+		return tonumber(text) ~= nil
+	end)
+end
+
 function Ui.round(instance: GuiObject, radius: number)
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(radius, 0)
@@ -98,6 +153,10 @@ function Ui.window(name: string, title: string): Window
 	local close =
 		Ui.button(panel, UDim2.fromScale(0.1, 0.09), UDim2.fromScale(0.87, 0.02), Color3.fromRGB(200, 60, 60))
 	close.Text = "X"
+	if Ui.icon(close, "Close", UDim2.fromScale(1, 1), UDim2.new()) then
+		close.Text = ""
+		close.BackgroundTransparency = 1
+	end
 
 	local body = Instance.new("ScrollingFrame")
 	body.BackgroundTransparency = 1

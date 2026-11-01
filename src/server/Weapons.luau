@@ -15,6 +15,7 @@ local StarterPack = game:GetService("StarterPack")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Icons = require(ReplicatedStorage.Shared.Icons)
 local RiftInvasion = require(script.Parent.RiftInvasion)
 local Steal = require(script.Parent.Steal)
 local StoreUpgrades = require(script.Parent.StoreUpgrades)
@@ -39,6 +40,7 @@ local function makeTool(): Tool
 	tool.CanBeDropped = false
 	tool.RequiresHandle = true
 	tool.Grip = GRIP
+	tool.TextureId = Icons.get("Baton") or ""
 
 	local handle = Instance.new("Part")
 	handle.Name = "Handle"

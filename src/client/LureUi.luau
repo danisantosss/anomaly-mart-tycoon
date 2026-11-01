@@ -75,6 +75,7 @@ function LureUi.start()
 			Color3.fromRGB(150, 255, 200)
 
 		local buy = Ui.button(row, UDim2.fromScale(0.3, 0.6), UDim2.fromScale(0.67, 0.2))
+		Ui.robuxIcon(buy)
 		if free then
 			buy.Text = "FREE (Studio)"
 			buy.BackgroundColor3 = Ui.GREEN
@@ -82,7 +83,7 @@ function LureUi.start()
 			buy.Text = "SOON"
 			buy.BackgroundColor3 = Ui.DISABLED
 		else
-			buy.Text = `R$ {product.price}`
+			buy.Text = Ui.robuxPrice(product.price)
 			buy.BackgroundColor3 = Ui.BLUE
 		end
 		buy.Activated:Connect(function()

@@ -16,14 +16,19 @@ local player = Players.LocalPlayer
 
 local Menu = {}
 
-type Entry = { label: string, color: Color3, toggle: () -> () }
+type Entry = { label: string, color: Color3, toggle: () -> (), icon: string }
 
 local ENTRIES: { Entry } = {
-	{ label = "SHOP", color = Ui.GREEN, toggle = UpgradesUi.toggle },
-	{ label = "INDEX", color = Color3.fromRGB(140, 90, 210), toggle = IndexUi.toggle },
-	{ label = "LURE", color = Color3.fromRGB(90, 60, 200), toggle = LureUi.toggle },
-	{ label = "GIFTS", color = Ui.GOLD, toggle = RewardsUi.toggle },
-	{ label = "FRANCHISE", color = Color3.fromRGB(210, 70, 90), toggle = FranchiseUi.toggle },
+	{ label = "SHOP", color = Ui.GREEN, toggle = UpgradesUi.toggle, icon = "Shop" },
+	{ label = "INDEX", color = Color3.fromRGB(140, 90, 210), toggle = IndexUi.toggle, icon = "Index" },
+	{ label = "LURE", color = Color3.fromRGB(90, 60, 200), toggle = LureUi.toggle, icon = "Lure" },
+	{ label = "GIFTS", color = Ui.GOLD, toggle = RewardsUi.toggle, icon = "Gifts" },
+	{
+		label = "FRANCHISE",
+		color = Color3.fromRGB(210, 70, 90),
+		toggle = FranchiseUi.toggle,
+		icon = "Franchise",
+	},
 }
 
 function Menu.start()
@@ -53,6 +58,10 @@ function Menu.start()
 		button.LayoutOrder = index
 		button.Text = entry.label
 		button.Activated:Connect(entry.toggle)
+		-- Com ícone: ícone à esquerda e texto encostado à direita.
+		if Ui.icon(button, entry.icon, UDim2.fromScale(0.8, 0.8), UDim2.fromScale(0, 0.1)) then
+			button.TextXAlignment = Enum.TextXAlignment.Right
+		end
 		if entry.toggle == RewardsUi.toggle then
 			local mark = Ui.text(
 				button,
