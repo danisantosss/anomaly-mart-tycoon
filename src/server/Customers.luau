@@ -690,7 +690,7 @@ local function setupStore(player: Player)
 	}
 	stores[player] = state
 
-	-- Dois botões no mesmo lugar: o Roblox mostra os dois lado a lado.
+	-- Dois botões na mesma peça: o cliente (PromptStack) coloca um embaixo do outro.
 	makeCounterPrompt(player, counter, "ChargePrompt", "Charge", Enum.KeyCode.F).Triggered:Connect(
 		function(who)
 			if who == player then
