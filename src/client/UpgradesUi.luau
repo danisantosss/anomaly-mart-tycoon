@@ -87,6 +87,7 @@ function UpgradesUi.start()
 		).TextColor3 =
 			Ui.MUTED
 		local buy = Ui.button(frame, UDim2.fromScale(0.3, 0.7), UDim2.fromScale(0.67, 0.15))
+		Ui.robuxIcon(buy)
 
 		local function refresh()
 			if player:GetAttribute(`Pass_{key}`) == true then
@@ -96,7 +97,7 @@ function UpgradesUi.start()
 				buy.Text = "SOON"
 				buy.BackgroundColor3 = Ui.DISABLED
 			else
-				buy.Text = `R$ {pass.price}`
+				buy.Text = Ui.robuxPrice(pass.price)
 				buy.BackgroundColor3 = Ui.BLUE
 			end
 		end

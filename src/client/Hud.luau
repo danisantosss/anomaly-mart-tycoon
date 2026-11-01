@@ -10,6 +10,7 @@ local TweenService = game:GetService("TweenService")
 
 local NumberFormat = require(ReplicatedStorage.Shared.NumberFormat)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Ui = require(script.Parent.Ui)
 
 local player = Players.LocalPlayer
 
@@ -65,6 +66,7 @@ function Hud.start()
 	cashLabel.AnchorPoint = Vector2.new(0.5, 0)
 	cashLabel.Size = UDim2.fromScale(0.35, 0.08)
 	cashLabel.Position = UDim2.fromScale(0.5, 0.02)
+	Ui.iconBeforeText(cashLabel, "Cash")
 
 	local function updateCash()
 		local cash = player:GetAttribute("Cash")
@@ -79,6 +81,7 @@ function Hud.start()
 	safeLabel.Size = UDim2.fromScale(0.3, 0.035)
 	safeLabel.Position = UDim2.fromScale(0.5, 0.1)
 	safeLabel.TextColor3 = SAFE_COLOR
+	Ui.iconBeforeText(safeLabel, "Safe")
 
 	local function updateSafe()
 		local safe = player:GetAttribute("SafeBalance")
@@ -103,6 +106,7 @@ function Hud.start()
 	eventLabel.Size = UDim2.fromScale(0.3, 0.035)
 	eventLabel.Position = UDim2.fromScale(0.5, 0.19)
 	eventLabel.TextColor3 = Color3.fromRGB(255, 210, 60)
+	Ui.iconBeforeText(eventLabel, "Event")
 
 	-- Canto superior direito: multiplicador total, estrela da Franquia e tempo do boost 2x.
 	local bonusLabel = makeLabel("Bonus", gui)
